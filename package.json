@@ -19,22 +19,22 @@
     "preview:pages": "node scripts/serve-dist.mjs --base /formula-alchemy/ --port 4173"
   },
   "dependencies": {
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
+    "katex": "0.16.25",
     "matter-js": "0.20.0",
-    "katex": "0.16.25"
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "@types/katex": "0.16.7",
+    "@types/matter-js": "0.20.2",
+    "@types/node": "22.18.0",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
-    "@types/matter-js": "0.20.2",
-    "@types/katex": "0.16.7",
-    "@types/node": "22.18.0",
-    "typescript": "5.9.3",
-    "vite": "7.3.2",
     "@vitejs/plugin-react": "5.0.4",
-    "vitest": "3.2.4",
-    "@playwright/test": "1.57.0"
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "5.0.1"
   },
   "engines": {
     "node": ">=22.12.0"
