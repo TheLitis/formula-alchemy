@@ -1,0 +1,40 @@
+{
+  "fixture": {
+    "physics": "no-op UI fixture; Matter NOT exercised",
+    "react": "19.1.1 bundled with local Playwright",
+    "katex": "0.16.27 bundled with local Gradio",
+    "storage": "in-memory fixture, not origin persistence"
+  },
+  "runs": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "no horizontal overflow",
+        "mouse crafting",
+        "numerical parameter edits",
+        "simulation clock pause",
+        "circuit switch UI",
+        "total internal reflection",
+        "save/load via storage fixture",
+        "dialog Escape and focus restoration",
+        "44 recipe UI/render smoke cases"
+      ],
+      "pageErrors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "no horizontal overflow",
+        "touch crafting",
+        "numerical parameter edits",
+        "simulation clock pause",
+        "circuit switch UI",
+        "total internal reflection",
+        "save/load via storage fixture",
+        "dialog Escape and focus restoration",
+        "44 recipe UI/render smoke cases"
+      ],
+      "pageErrors": []
+    }
+  ]
+}

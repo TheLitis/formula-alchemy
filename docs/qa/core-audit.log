@@ -1,0 +1,526 @@
+Syntax transpilation: 40 TypeScript files; TypeScript 5.8.3
+TAP version 13
+# Subtest: complete recipe catalogue
+    # Subtest: covers nine school topics with unique, fully implemented recipes
+    ok 1 - covers nine school topics with unique, fully implemented recipes
+      ---
+      duration_ms: 2.960257
+      type: 'test'
+      ...
+    # Subtest: weight: notation, units, handler, finite defaults and admissible input bounds
+    ok 2 - weight: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 1.106508
+      type: 'test'
+      ...
+    # Subtest: newton: notation, units, handler, finite defaults and admissible input bounds
+    ok 3 - newton: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.379819
+      type: 'test'
+      ...
+    # Subtest: kinetic: notation, units, handler, finite defaults and admissible input bounds
+    ok 4 - kinetic: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.364167
+      type: 'test'
+      ...
+    # Subtest: momentum: notation, units, handler, finite defaults and admissible input bounds
+    ok 5 - momentum: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.326441
+      type: 'test'
+      ...
+    # Subtest: potential: notation, units, handler, finite defaults and admissible input bounds
+    ok 6 - potential: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.341052
+      type: 'test'
+      ...
+    # Subtest: impulse: notation, units, handler, finite defaults and admissible input bounds
+    ok 7 - impulse: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.221797
+      type: 'test'
+      ...
+    # Subtest: work: notation, units, handler, finite defaults and admissible input bounds
+    ok 8 - work: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.349704
+      type: 'test'
+      ...
+    # Subtest: hooke: notation, units, handler, finite defaults and admissible input bounds
+    ok 9 - hooke: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.46214
+      type: 'test'
+      ...
+    # Subtest: friction: notation, units, handler, finite defaults and admissible input bounds
+    ok 10 - friction: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.54974
+      type: 'test'
+      ...
+    # Subtest: pressure: notation, units, handler, finite defaults and admissible input bounds
+    ok 11 - pressure: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.222738
+      type: 'test'
+      ...
+    # Subtest: density: notation, units, handler, finite defaults and admissible input bounds
+    ok 12 - density: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.214005
+      type: 'test'
+      ...
+    # Subtest: buoyancy: notation, units, handler, finite defaults and admissible input bounds
+    ok 13 - buoyancy: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.271309
+      type: 'test'
+      ...
+    # Subtest: gravitation: notation, units, handler, finite defaults and admissible input bounds
+    ok 14 - gravitation: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.293682
+      type: 'test'
+      ...
+    # Subtest: blackhole: notation, units, handler, finite defaults and admissible input bounds
+    ok 15 - blackhole: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.303958
+      type: 'test'
+      ...
+    # Subtest: heat: notation, units, handler, finite defaults and admissible input bounds
+    ok 16 - heat: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.250789
+      type: 'test'
+      ...
+    # Subtest: melting: notation, units, handler, finite defaults and admissible input bounds
+    ok 17 - melting: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.855239
+      type: 'test'
+      ...
+    # Subtest: idealGas: notation, units, handler, finite defaults and admissible input bounds
+    ok 18 - idealGas: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.185342
+      type: 'test'
+      ...
+    # Subtest: firstLaw: notation, units, handler, finite defaults and admissible input bounds
+    ok 19 - firstLaw: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.184202
+      type: 'test'
+      ...
+    # Subtest: ohm: notation, units, handler, finite defaults and admissible input bounds
+    ok 20 - ohm: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.138343
+      type: 'test'
+      ...
+    # Subtest: series: notation, units, handler, finite defaults and admissible input bounds
+    ok 21 - series: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.190751
+      type: 'test'
+      ...
+    # Subtest: parallel: notation, units, handler, finite defaults and admissible input bounds
+    ok 22 - parallel: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.140416
+      type: 'test'
+      ...
+    # Subtest: joule: notation, units, handler, finite defaults and admissible input bounds
+    ok 23 - joule: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.201747
+      type: 'test'
+      ...
+    # Subtest: capacitor: notation, units, handler, finite defaults and admissible input bounds
+    ok 24 - capacitor: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.173625
+      type: 'test'
+      ...
+    # Subtest: power: notation, units, handler, finite defaults and admissible input bounds
+    ok 25 - power: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.155439
+      type: 'test'
+      ...
+    # Subtest: coulomb: notation, units, handler, finite defaults and admissible input bounds
+    ok 26 - coulomb: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 1.950061
+      type: 'test'
+      ...
+    # Subtest: electricField: notation, units, handler, finite defaults and admissible input bounds
+    ok 27 - electricField: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.239082
+      type: 'test'
+      ...
+    # Subtest: lorentz: notation, units, handler, finite defaults and admissible input bounds
+    ok 28 - lorentz: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.253724
+      type: 'test'
+      ...
+    # Subtest: ampere: notation, units, handler, finite defaults and admissible input bounds
+    ok 29 - ampere: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.315705
+      type: 'test'
+      ...
+    # Subtest: induction: notation, units, handler, finite defaults and admissible input bounds
+    ok 30 - induction: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.33937
+      type: 'test'
+      ...
+    # Subtest: springPeriod: notation, units, handler, finite defaults and admissible input bounds
+    ok 31 - springPeriod: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.256668
+      type: 'test'
+      ...
+    # Subtest: pendulum: notation, units, handler, finite defaults and admissible input bounds
+    ok 32 - pendulum: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.162379
+      type: 'test'
+      ...
+    # Subtest: wave: notation, units, handler, finite defaults and admissible input bounds
+    ok 33 - wave: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.161858
+      type: 'test'
+      ...
+    # Subtest: interference: notation, units, handler, finite defaults and admissible input bounds
+    ok 34 - interference: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.241075
+      type: 'test'
+      ...
+    # Subtest: snell: notation, units, handler, finite defaults and admissible input bounds
+    ok 35 - snell: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.183931
+      type: 'test'
+      ...
+    # Subtest: lens: notation, units, handler, finite defaults and admissible input bounds
+    ok 36 - lens: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.153656
+      type: 'test'
+      ...
+    # Subtest: photon: notation, units, handler, finite defaults and admissible input bounds
+    ok 37 - photon: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.138744
+      type: 'test'
+      ...
+    # Subtest: photoelectric: notation, units, handler, finite defaults and admissible input bounds
+    ok 38 - photoelectric: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.773168
+      type: 'test'
+      ...
+    # Subtest: bohr: notation, units, handler, finite defaults and admissible input bounds
+    ok 39 - bohr: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.117703
+      type: 'test'
+      ...
+    # Subtest: decay: notation, units, handler, finite defaults and admissible input bounds
+    ok 40 - decay: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.104013
+      type: 'test'
+      ...
+    # Subtest: binding: notation, units, handler, finite defaults and admissible input bounds
+    ok 41 - binding: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.097403
+      type: 'test'
+      ...
+    # Subtest: massEnergy: notation, units, handler, finite defaults and admissible input bounds
+    ok 42 - massEnergy: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.151192
+      type: 'test'
+      ...
+    # Subtest: gamma: notation, units, handler, finite defaults and admissible input bounds
+    ok 43 - gamma: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.12901
+      type: 'test'
+      ...
+    # Subtest: timeDilation: notation, units, handler, finite defaults and admissible input bounds
+    ok 44 - timeDilation: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.079728
+      type: 'test'
+      ...
+    # Subtest: lengthContraction: notation, units, handler, finite defaults and admissible input bounds
+    ok 45 - lengthContraction: notation, units, handler, finite defaults and admissible input bounds
+      ---
+      duration_ms: 0.070193
+      type: 'test'
+      ...
+    1..45
+ok 1 - complete recipe catalogue
+  ---
+  duration_ms: 19.285139
+  type: 'suite'
+  ...
+# Subtest: numerical laws and SI conversions
+    # Subtest: weight, kinetic energy and momentum
+    ok 1 - weight, kinetic energy and momentum
+      ---
+      duration_ms: 0.213795
+      type: 'test'
+      ...
+    # Subtest: density converts litres into cubic metres
+    ok 2 - density converts litres into cubic metres
+      ---
+      duration_ms: 0.06844
+      type: 'test'
+      ...
+    # Subtest: Archimedes force uses displaced volume
+    ok 3 - Archimedes force uses displaced volume
+      ---
+      duration_ms: 0.057185
+      type: 'test'
+      ...
+    # Subtest: gas pressure returns kPa, not Pa
+    ok 4 - gas pressure returns kPa, not Pa
+      ---
+      duration_ms: 0.096772
+      type: 'test'
+      ...
+    # Subtest: series and parallel resistances differ
+    ok 5 - series and parallel resistances differ
+      ---
+      duration_ms: 0.07493
+      type: 'test'
+      ...
+    # Subtest: capacitance in mF produces mC
+    ok 6 - capacitance in mF produces mC
+      ---
+      duration_ms: 0.06797
+      type: 'test'
+      ...
+    # Subtest: Lorentz force changes sign with charge and vanishes with B
+    ok 7 - Lorentz force changes sign with charge and vanishes with B
+      ---
+      duration_ms: 0.059798
+      type: 'test'
+      ...
+    # Subtest: Coulomb charges are microcoulombs
+    ok 8 - Coulomb charges are microcoulombs
+      ---
+      duration_ms: 0.055241
+      type: 'test'
+      ...
+    # Subtest: photoemission has a real energy threshold
+    ok 9 - photoemission has a real energy threshold
+      ---
+      duration_ms: 0.06097
+      type: 'test'
+      ...
+    # Subtest: refraction handles total internal reflection and equal indices
+    ok 10 - refraction handles total internal reflection and equal indices
+      ---
+      duration_ms: 0.067038
+      type: 'test'
+      ...
+    # Subtest: thin lens gives real, virtual and infinite images
+    ok 11 - thin lens gives real, virtual and infinite images
+      ---
+      duration_ms: 0.063273
+      type: 'test'
+      ...
+    # Subtest: half life is not a fixed loss per second
+    ok 12 - half life is not a fixed loss per second
+      ---
+      duration_ms: 0.080138
+      type: 'test'
+      ...
+    # Subtest: relativity uses beta < 1 and grams to kg
+    ok 13 - relativity uses beta < 1 and grams to kg
+      ---
+      duration_ms: 0.125154
+      type: 'test'
+      ...
+    # Subtest: gravitation has inverse square dependence
+    ok 14 - gravitation has inverse square dependence
+      ---
+      duration_ms: 0.101089
+      type: 'test'
+      ...
+    # Subtest: unknown laws fail rather than silently fabricating a result
+    ok 15 - unknown laws fail rather than silently fabricating a result
+      ---
+      duration_ms: 0.28516
+      type: 'test'
+      ...
+    1..15
+ok 2 - numerical laws and SI conversions
+  ---
+  duration_ms: 1.751899
+  type: 'suite'
+  ...
+# Subtest: crafting as a multiset, not string concatenation
+    # Subtest: m + g combines and creates a discovery exactly once
+    ok 1 - m + g combines and creates a discovery exactly once
+      ---
+      duration_ms: 4.601053
+      type: 'test'
+      ...
+    # Subtest: g + h remains an intermediate and then m gives potential energy
+    ok 2 - g + h remains an intermediate and then m gives potential energy
+      ---
+      duration_ms: 0.415992
+      type: 'test'
+      ...
+    # Subtest: m + v selects kinetic energy and allows momentum explicitly
+    ok 3 - m + v selects kinetic energy and allows momentum explicitly
+      ---
+      duration_ms: 0.982867
+      type: 'test'
+      ...
+    # Subtest: invalid combinations do not consume ingredients
+    ok 4 - invalid combinations do not consume ingredients
+      ---
+      duration_ms: 0.279381
+      type: 'test'
+      ...
+    # Subtest: an element cannot combine with itself
+    ok 5 - an element cannot combine with itself
+      ---
+      duration_ms: 0.100358
+      type: 'test'
+      ...
+    # Subtest: duplicates are counted and arbitrary algebra is not evaluated
+    ok 6 - duplicates are counted and arbitrary algebra is not evaluated
+      ---
+      duration_ms: 0.252101
+      type: 'test'
+      ...
+    # Subtest: preparing from the book does not count as discovery
+    ok 7 - preparing from the book does not count as discovery
+      ---
+      duration_ms: 0.338698
+      type: 'test'
+      ...
+    # Subtest: values are finite, bounded and quantized; editing restarts only this node
+    ok 8 - values are finite, bounded and quantized; editing restarts only this node
+      ---
+      duration_ms: 0.492695
+      type: 'test'
+      ...
+    # Subtest: node budget is enforced
+    ok 9 - node budget is enforced
+      ---
+      duration_ms: 0.334182
+      type: 'test'
+      ...
+    # Subtest: reset retains discoveries and deletion removes selected lab
+    ok 10 - reset retains discoveries and deletion removes selected lab
+      ---
+      duration_ms: 0.418606
+      type: 'test'
+      ...
+    1..10
+ok 3 - crafting as a multiset, not string concatenation
+  ---
+  duration_ms: 9.457823
+  type: 'suite'
+  ...
+# Subtest: versioned and validated experiments
+    # Subtest: round trips JSON with state and runtime
+    ok 1 - round trips JSON with state and runtime
+      ---
+      duration_ms: 6.626284
+      type: 'test'
+      ...
+    # Subtest: rejects unknown versions
+    ok 2 - rejects unknown versions
+      ---
+      duration_ms: 0.487869
+      type: 'test'
+      ...
+    # Subtest: rejects malformed or oversized JSON
+    ok 3 - rejects malformed or oversized JSON
+      ---
+      duration_ms: 0.237981
+      type: 'test'
+      ...
+    # Subtest: rejects arbitrary unknown symbols
+    ok 4 - rejects arbitrary unknown symbols
+      ---
+      duration_ms: 0.405437
+      type: 'test'
+      ...
+    # Subtest: rejects invalid recipe-ingredient mappings
+    ok 5 - rejects invalid recipe-ingredient mappings
+      ---
+      duration_ms: 0.428301
+      type: 'test'
+      ...
+    # Subtest: rejects out-of-domain parameters
+    ok 6 - rejects out-of-domain parameters
+      ---
+      duration_ms: 0.389294
+      type: 'test'
+      ...
+    # Subtest: rejects NaN, duplicate ids and incorrect lab references
+    ok 7 - rejects NaN, duplicate ids and incorrect lab references
+      ---
+      duration_ms: 0.715453
+      type: 'test'
+      ...
+    # Subtest: rejects fractional quantum numbers
+    ok 8 - rejects fractional quantum numbers
+      ---
+      duration_ms: 0.57724
+      type: 'test'
+      ...
+    # Subtest: merges discoveries and does not autoplay imported music
+    ok 9 - merges discoveries and does not autoplay imported music
+      ---
+      duration_ms: 0.566224
+      type: 'test'
+      ...
+    # Subtest: snapshots do not retain mutable references
+    ok 10 - snapshots do not retain mutable references
+      ---
+      duration_ms: 0.517351
+      type: 'test'
+      ...
+    1..10
+ok 4 - versioned and validated experiments
+  ---
+  duration_ms: 12.743229
+  type: 'suite'
+  ...
+1..4
+# tests 80
+# suites 4
+# pass 80
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 114.889577
+{
+  "recipeCount": 44,
+  "renderCases": 738,
+  "recordedCanvasCommands": 293915,
+  "physicsEngine": "NOT_RUN",
+  "viteBuild": "NOT_RUN"
+}
