@@ -34,6 +34,7 @@ export const SYMBOLS: SymbolDef[] = [
     s('R2', 'R_2', 'Второе сопротивление', 'Ом', 'electricity'), s('I', 'I', 'Сила тока', 'А', 'electricity'),
     s('C', 'C', 'Электроёмкость', 'Ф', 'electricity'), s('q', 'q', 'Электрический заряд', 'Кл', 'electricity'),
     s('q2', 'q_2', 'Второй заряд', 'Кл', 'electricity'), s('E', 'E', 'Напряжённость электрического поля', 'Н/Кл', 'electricity'),
+    s('mu_m', '\\mu_r', 'Магнитная проницаемость', '1', 'magnetism'),
     s('B', 'B', 'Магнитная индукция', 'Тл', 'magnetism'), s('L', 'L', 'Длина', 'м', 'waves'),
     s('Phi', '\\Delta\\Phi', 'Изменение магнитного потока', 'Вб', 'magnetism'), s('dt', '\\Delta t', 'Промежуток времени', 'с', 'magnetism'),
     s('lambda', '\\lambda', 'Длина волны', 'м', 'waves'), s('f', 'f', 'Частота', 'Гц', 'waves'),

@@ -6,7 +6,7 @@ import { EFFECTS } from '../src/rendering/effects';
 import { candidates, exactRecipes } from '../src/core/crafting';
 describe('complete recipe catalogue', () => {
     it('covers nine school topics with unique, fully implemented recipes', () => {
-        expect(RECIPES.length).toBe(44);
+        expect(RECIPES.length).toBe(48);
         expect(new Set(RECIPES.map(r => r.id)).size).toBe(RECIPES.length);
         expect(new Set(RECIPES.map(r => r.topic)).size).toBe(TOPICS.length);
         expect(Object.keys(EFFECTS).sort()).toEqual(RECIPES.map(r => r.id).sort());
@@ -34,7 +34,7 @@ describe('complete recipe catalogue', () => {
                     const reading = calculate(r.id, { ...params, [p.key]: v });
                     expect(Number.isNaN(reading.value)).toBe(false);
                     if (!Number.isFinite(reading.value))
-                        expect(r.id).toBe('lens');
+                        expect(['lens', 'crossedFields']).toContain(r.id);
                 }
             }
         });

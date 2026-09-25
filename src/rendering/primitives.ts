@@ -1,3 +1,4 @@
+import { recordCircle, recordRect, recordLine } from './interaction';
 import type { FormulaNode, GameState } from '../core/types';
 import type { PhysicsWorld } from '../physics/World';
 export interface DrawContext {
@@ -11,8 +12,11 @@ export interface DrawContext {
 export type EffectRenderer = (d: DrawContext) => void;
 export const INK = '#282828', MUTED = '#7a7a7a', FAINT = '#d6d6d6', PAPER = '#f3f3f3';
 let labelScale = 1;
+let apparatusLabels = false;
+export function setApparatusLabels(enabled: boolean) { apparatusLabels = enabled; }
 export function setLabelScale(scale: number) { labelScale = scale; }
 export const line = (c: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color = INK, width = 1, dash: number[] = []) => {
+    recordLine(x1, y1, x2, y2);
     c.save();
     c.strokeStyle = color;
     c.lineWidth = width;
@@ -23,9 +27,9 @@ export const line = (c: CanvasRenderingContext2D, x1: number, y1: number, x2: nu
     c.stroke();
     c.restore();
 };
-export function text(c: CanvasRenderingContext2D, value: string, x: number, y: number, size = 16, color = INK, align: CanvasTextAlign = 'left', serif = false) { c.save(); c.font = `${serif ? 'italic ' : ''}${size * labelScale}px ${serif ? 'Georgia, serif' : 'Arial, sans-serif'}`; c.fillStyle = color; c.textAlign = align; c.fillText(value, x, y); c.restore(); }
+export function text(c: CanvasRenderingContext2D, value: string, x: number, y: number, size = 16, color = INK, align: CanvasTextAlign = 'left', serif = false) { if (!apparatusLabels && (value.includes('=') || value.includes('→') || value.length > 12)) return; c.save(); c.font = `${serif ? 'italic ' : ''}${size * labelScale}px ${serif ? 'Georgia, serif' : 'Arial, sans-serif'}`; c.fillStyle = color; c.textAlign = align; c.fillText(value, x, y); c.restore(); }
 export function circle(c: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string | null = null, stroke: string | null = INK, width = 1) { if (r < 0 || !Number.isFinite(r))
-    return; c.save(); c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); if (fill) {
+    return; recordCircle(x, y, r, !!fill); c.save(); c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); if (fill) {
     c.fillStyle = fill;
     c.fill();
 } if (stroke) {
@@ -33,7 +37,7 @@ export function circle(c: CanvasRenderingContext2D, x: number, y: number, r: num
     c.strokeStyle = stroke;
     c.stroke();
 } c.restore(); }
-export function rect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string | null = null, stroke: string | null = INK) { c.save(); if (fill) {
+export function rect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string | null = null, stroke: string | null = INK) { recordRect(x, y, w, h); c.save(); if (fill) {
     c.fillStyle = fill;
     c.fillRect(x, y, w, h);
 } if (stroke) {
@@ -51,7 +55,7 @@ export function polyline(c: CanvasRenderingContext2D, points: {
     x: number;
     y: number;
 }[], color = INK, width = 1, dash: number[] = []) { if (points.length < 2)
-    return; c.save(); c.strokeStyle = color; c.lineWidth = width; c.setLineDash(dash); c.beginPath(); points.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke(); c.restore(); }
+    return; for (let i = 1; i < points.length; i += 2) recordLine(points[i-1].x, points[i-1].y, points[i].x, points[i].y); c.save(); c.strokeStyle = color; c.lineWidth = width; c.setLineDash(dash); c.beginPath(); points.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke(); c.restore(); }
 export function spring(c: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, turns = 15) { const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy), nx = -dy / Math.max(1, l), ny = dx / Math.max(1, l); const pts = [{ x: x1, y: y1 }]; for (let i = 1; i < turns * 2; i++) {
     const t = i / (turns * 2), a = i % 2 ? 9 : -9;
     pts.push({ x: x1 + dx * t + nx * a, y: y1 + dy * t + ny * a });

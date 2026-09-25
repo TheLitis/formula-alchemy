@@ -1,3 +1,4 @@
+import { standaloneParameters } from './entities';
 import { RECIPE_MAP, RECIPES } from './catalog';
 import { multisetContains } from './crafting';
 import { SYMBOL_MAP } from './symbols';
@@ -42,8 +43,15 @@ export function validateSave(input: unknown): SavedExperiment {
         if (Math.abs(ticks - Math.round(ticks)) > 1e-5) return fail();
         params[p.key] = value;
       }
-    } else if (!RECIPES.some(rec => multisetContains(rec.inputs, n.parts as string[]))) {
-      return fail();
+    } else {
+      if (!RECIPES.some(rec => multisetContains(rec.inputs, n.parts as string[]))) return fail();
+      for (const p of standaloneParameters(n.parts as string[])) {
+        const value = n.params[p.key] ?? p.initial; // v1 saves had no standalone parameters
+        if (!num(value, p.min, p.max)) return fail();
+        const ticks = (value - p.min) / p.step;
+        if (Math.abs(ticks - Math.round(ticks)) > 1e-5) return fail();
+        params[p.key] = value;
+      }
     }
 
     return { id: n.id, parts: [...n.parts] as string[], x: n.x, y: n.y, recipeId, params, revision: n.revision, closed: bool(n.closed) };
@@ -123,12 +131,15 @@ export function readAuto(): SavedExperiment | null {
   try {
     return parseSave(raw);
   } catch {
-    return null;
+    throw new Error('Автосохранение повреждено; исходный JSON сохранён.');
   }
 }
 
 export function writeAuto(save: SavedExperiment) {
-  localStorage.setItem(AUTO, JSON.stringify(validateSave(save)));
+  const clean = validateSave(save);
+  const old = localStorage.getItem(AUTO);
+  if (old) { try { parseSave(old); } catch { localStorage.setItem(`${AUTO}:recovery`, old); } }
+  localStorage.setItem(AUTO, JSON.stringify(clean));
 }
 
 export function readSlots(): SavedExperiment[] {
@@ -138,11 +149,9 @@ export function readSlots(): SavedExperiment[] {
   try {
     data = JSON.parse(raw);
   } catch {
-    localStorage.removeItem(SLOTS);
     return [];
   }
   if (!Array.isArray(data)) {
-    localStorage.removeItem(SLOTS);
     return [];
   }
   const valid: SavedExperiment[] = [];
@@ -158,6 +167,8 @@ export function readSlots(): SavedExperiment[] {
 
 export function writeSlot(save: SavedExperiment) {
   const clean = validateSave(save);
+  const previous = localStorage.getItem(SLOTS);
+  if (previous) localStorage.setItem(`${SLOTS}:recovery`, previous);
   const slots = readSlots().filter(s => s.id !== clean.id);
   localStorage.setItem(SLOTS, JSON.stringify([clean, ...slots].slice(0, 8)));
 }

@@ -1,3 +1,4 @@
+import { energyColumn } from '../../physics/labModels';
 import { calculate, formatValue } from '../../core/evaluate';
 import { arrow, circle, FAINT, gauge, INK, line, MUTED, PAPER, random, rect, text, triangle } from '../primitives';
 import type { DrawContext, EffectRenderer } from '../primitives';
@@ -66,11 +67,12 @@ const idealGas: EffectRenderer = (d) => {
 const firstLaw: EffectRenderer = (d) => {
     const { c, node, age } = d, p = node.params, progress = Math.min(1, age / 5), du = p.Q - p.W;
     rect(c, 378, 220, 230, 290, null, INK);
-    rect(c, 385, 503 - (50 + du * progress) * 2.5, 216, (50 + du * progress) * 2.5, '#cacaca', null);
+    const energy = energyColumn(p.Q, p.W, progress), height = energy.fraction * 275;
+    rect(c, 385, 503 - height, 216, height, '#cacaca', null);
     for (let i = 0; i < 7; i++)
         line(c, 390, 265 + i * 33, 599, 265 + i * 33, FAINT);
     text(c, 'U', 493, 182, 38, INK, 'center', true);
-    text(c, `${formatValue(50 + du * progress)} кДж`, 493, 552, 22, INK, 'center');
+    text(c, `${formatValue(energy.value)} кДж`, 493, 552, 22, INK, 'center');
     if (p.Q >= 0)
         arrow(c, 160, 345, 340, 345, INK, 3);
     else

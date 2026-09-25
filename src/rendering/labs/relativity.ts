@@ -1,3 +1,4 @@
+import { rodPosition } from '../../physics/labModels';
 import { calculate, formatValue, gamma } from '../../core/evaluate';
 import { arrow, circle, FAINT, INK, line, MUTED, PAPER, polyline, rect, text, triangle } from '../primitives';
 import type { EffectRenderer } from '../primitives';
@@ -43,8 +44,8 @@ const length: EffectRenderer = ({ c, node, age }) => {
     const p = node.params, base = p.L * 56, contracted = calculate('lengthContraction', p).value * 56, start = 190;
     rect(c, start, 250, base, 43, '#cfcfcf', INK);
     text(c, 'собственная длина L₀', start, 224, 19, MUTED);
-    const offset = p.beta === 0 ? 0 : ((age * 40 * p.beta) % (1000 + contracted)) - contracted;
-    rect(c, Math.max(150, offset), 405, contracted, 43, PAPER, INK);
+    const offset = rodPosition(contracted, p.beta, age);
+    rect(c, offset, 405, contracted, 43, PAPER, INK);
     for (let i = 0; i <= 10; i++) {
         const x = start + i * 56;
         line(c, x, 330, x, 342, FAINT);

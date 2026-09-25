@@ -1,3 +1,4 @@
+import { fluidCenter } from '../../physics/labModels';
 import { calculate, formatValue, G } from '../../core/evaluate';
 import { HEIGHT, PX_PER_M } from '../../core/types';
 import { blackHoleGeometry } from '../../physics/geometry';
@@ -48,8 +49,8 @@ const physical: EffectRenderer = ({ c, node, age, world, state }) => {
   }
 };
 
-const pressure: EffectRenderer = ({ c, node }) => {
-  const p = node.params, value = calculate('pressure', p).value, width = Math.sqrt(p.S) * 150, deformation = Math.min(65, Math.log1p(value) * 10);
+const pressure: EffectRenderer = ({ c, node, age }) => {
+  const p = node.params, value = calculate('pressure', p).value, width = Math.sqrt(p.S) * 150, deformation = Math.min(65, Math.log1p(value) * 10) * (1 - (1 + age * 4) * Math.exp(-age * 4));
   rect(c, 200, 445, 610, 80, '#dbdbdb', null);
   line(c, 200, 445, 810, 445, FAINT, 1);
   rect(c, 500 - width / 2, 345 + deformation, width, 100, '#cbcbcb', INK);
@@ -69,10 +70,7 @@ const fluid: EffectRenderer = ({ c, node, age }) => {
   line(c, 730, 550, 730, 250, INK, 2);
   for (let x = 270; x <= 730; x += 10) line(c, x, 270 + Math.sin(x * .05 + age * 1.8) * 2, x + 10, 270 + Math.sin((x + 10) * .05 + age * 1.8) * 2, '#c2c2c2');
 
-  const target = density < rho ? 270 + side * (density / rho - .5) : 550 - side / 2;
-  const settle = 1 - Math.exp(-age * 1.4);
-  const wobble = Math.sin(age * 2.8) * 12 * Math.exp(-age * 0.7);
-  const y = 365 + (target - 365) * settle + wobble;
+  const y = fluidCenter(m, p.V, rho, g, age);
   rect(c, 500 - side / 2, y - side / 2, side, side, PAPER, INK);
   text(c, 'm', 500, y + 8, 29, INK, 'center', true);
 

@@ -79,7 +79,7 @@ const lorentz: EffectRenderer = ({ c, node, age }) => {
     text(c, `r = ${formatValue(realR)} м`, 500, 600, 26, INK, 'center', true);
     text(c, 'B направлено от наблюдателя · |v| постоянно', 500, 632, 15, MUTED, 'center');
 };
-const ampere: EffectRenderer = ({ c, node }) => {
+const ampere: EffectRenderer = ({ c, node, age }) => {
     const p = node.params, angle = radians(p.alpha), length = 90 + p.L * 65, F = calculate('ampere', p).value;
     for (let x = 180; x < 870; x += 65)
         for (let y = 190; y < 550; y += 100)
@@ -88,10 +88,13 @@ const ampere: EffectRenderer = ({ c, node }) => {
     line(c, 500 - dx, 335 - dy, 500 + dx, 335 + dy, INK, 7);
     arrow(c, 500 - dx, 335 - dy - 20, 500 + dx, 335 + dy - 20, INK, 1.5);
     text(c, 'I', 500 + dx + 20, 335 + dy, 24, INK, 'left', true);
-    circle(c, 500, 335, 24 + F * 2, PAPER, INK);
-    if (F > 1e-8)
-        circle(c, 500, 335, 5, INK, null);
-    text(c, F > 1e-8 ? 'F направлена к наблюдателю' : 'F = 0', 500, 537, 23, INK, 'center', true);
+    circle(c, 500, 335, 24 + Math.min(22, F * 2), PAPER, INK);
+    if (F > 1e-8) { line(c, 493, 328, 507, 342, INK, 2); line(c, 493, 342, 507, 328, INK, 2); }
+    if (p.I > 0) for (let i = 0; i < 5; i++) {
+        const t = ((age * Math.sqrt(p.I) * .15 + i / 5) % 1);
+        circle(c, 500 - dx + t * 2 * dx, 315 - dy + t * 2 * dy, 2.7, INK, null);
+    }
+    text(c, F > 1e-8 ? 'F направлена от наблюдателя' : 'F = 0', 500, 537, 23, INK, 'center', true);
     text(c, `α = ${p.alpha}°   ·   F = ${formatValue(F)} Н`, 500, 590, 20, MUTED, 'center');
     text(c, 'B', 843, 188, 25, INK, 'left', true);
 };
