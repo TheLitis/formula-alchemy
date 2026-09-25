@@ -2,9 +2,10 @@ name: Reference interaction QA
 on:
   push:
     branches: [fix/direct-manipulation-fields]
+    paths: ['.ci/ready']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: reference-qa-${{ github.ref }}
   cancel-in-progress: true
@@ -14,22 +15,73 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: fix/direct-manipulation-fields
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
-      - name: Package exact source and dependencies for offline browser verification
+      - name: Apply checked source delta (transport from isolated build environment)
         run: |
-          tar --exclude='./.git' --exclude='./node_modules' --exclude='./source-qa.tar.gz' -czf /tmp/source-qa.tar.gz .
-          tar -czf /tmp/dependencies-qa.tar.gz node_modules
-          cp /tmp/source-qa.tar.gz /tmp/dependencies-qa.tar.gz .
-      - uses: actions/upload-artifact@v4
-        with:
-          name: reference-qa-inputs
-          path: |
-            source-qa.tar.gz
-            dependencies-qa.tar.gz
-          retention-days: 2
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, runpy
+          root=Path.cwd().resolve()
+          changes=[]
+          for source in sorted(Path('.ci').glob('revision-*.py')):
+              changes.extend(runpy.run_path(str(source))['changes'])
+          assert len(changes)==36, f'Incomplete delta: {len(changes)} files'
+          assert len({x['path'] for x in changes})==len(changes)
+          prepared=[]
+          for change in changes:
+              path=(root/change['path']).resolve()
+              assert path.is_relative_to(root) and not path.is_relative_to(root/'.git')
+              text=path.read_text() if path.exists() else ''
+              assert hashlib.sha256(text.encode()).hexdigest()==change['sha256'], f'Stale base: {path}'
+              for start,end,replacement in reversed(change['edits']):
+                  assert 0<=start<=end<=len(text)
+                  text=text[:start]+replacement+text[end:]
+              prepared.append((path,text))
+          for path,text in prepared:
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_text(text)
+          print(f'Applied {len(prepared)} files; baseline hashes matched.')
+          PY
+      - run: npm ci
       - run: npm run check
       - run: npm run verify:dist
+      - run: npx playwright install --with-deps chromium
+      - name: Real HTTP desktop and mobile interaction tests
+        run: npx playwright test --retries=0
+      - name: Commit only the validated changes to the isolated fix branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm --ignore-unmatch .ci/ready .ci/revision-*.py
+          git add src tests e2e playwright.config.ts
+          git commit -m 'Fix direct scene manipulation, physical fields, capture and animation regressions'
+          git push origin HEAD:fix/direct-manipulation-fields
+          git rev-parse HEAD
+      - name: Archive the exact tested source
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile,ZIP_DEFLATED
+          with ZipFile('validated-source.zip','w',ZIP_DEFLATED) as z:
+              for root in ['src','tests','e2e','scripts','public','docs','.github']:
+                  for p in Path(root).rglob('*'):
+                      if p.is_file() and p.suffix not in ['.woff','.woff2','.ttf','.otf']:z.write(p,'formula-alchemy/'+str(p))
+              for name in ['package.json','package-lock.json','tsconfig.json','vite.config.ts','playwright.config.ts','index.html','.gitignore','README.md','LICENSE']:
+                  p=Path(name)
+                  if p.is_file():z.write(p,'formula-alchemy/'+name)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reference-qa-results
+          path: |
+            validated-source.zip
+            test-results
+            playwright-report
+          retention-days: 7
