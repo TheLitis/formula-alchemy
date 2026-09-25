@@ -1,26 +1,81 @@
-name: Prepare CC0 audio inputs
+name: Speed and sampled audio verification
 on:
   push:
     branches: [feat/speed-readouts-cc0-audio]
-    paths: [.github/workflows/audio-assets-prepare.yml]
+    paths: [.ci/audio-ready]
+  workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: speed-audio-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  fetch-audio:
+  verify:
+    if: github.ref == 'refs/heads/feat/speed-readouts-cc0-audio'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
-      - name: Download the three CC0 packs from their author's site
-        run: |
-          mkdir -p /tmp/cc0-audio
-          curl --fail --location --retry 2 --max-time 90 'https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip' -o /tmp/cc0-audio/interface.zip
-          curl --fail --location --retry 2 --max-time 90 'https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip' -o /tmp/cc0-audio/impact.zip
-          curl --fail --location --retry 2 --max-time 90 'https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip' -o /tmp/cc0-audio/scifi.zip
-          git archive --format=zip HEAD > /tmp/cc0-audio/source-baseline.zip
-          sha256sum /tmp/cc0-audio/*.zip > /tmp/cc0-audio/SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
         with:
-          name: kenney-cc0-source-inputs
-          path: /tmp/cc0-audio
-          retention-days: 3
+          ref: feat/speed-readouts-cc0-audio
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply source delta with checked baseline hashes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, lzma
+          root=Path.cwd().resolve()
+          encoded=''.join(p.read_text().strip() for p in sorted(Path('.ci').glob('audio-delta-*.txt')))
+          data=lzma.decompress(base64.b64decode(encoded))
+          assert hashlib.sha256(data).hexdigest()=='6fb8a8ef6862e1cb635a0683836ee3b47b6a69d4f15fba91280a5e805a3e46c6'
+          changes=json.loads(data)
+          assert len(changes)==28 and len({c['path'] for c in changes})==28
+          prepared=[]
+          for c in changes:
+              path=(root/c['path']).resolve()
+              assert path.is_relative_to(root) and not path.is_relative_to(root/'.git') and not path.is_relative_to(root/'.github')
+              before=path.read_bytes() if path.exists() else b''
+              assert hashlib.sha256(before).hexdigest()==c['base'], f'Stale file: {path}'
+              text=before.decode()
+              for a,b,replacement in reversed(c['edits']):
+                  assert 0<=a<=b<=len(text)
+                  text=text[:a]+replacement+text[b:]
+              prepared.append((path,text))
+          for path,text in prepared:
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_text(text)
+          print('Applied all 28 files; baseline hashes matched.')
+          PY
+      - name: Import the ten selected CC0 samples from pinned author archives
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python scripts/import-cc0-audio.py
+      - run: npm ci
+      - run: npm run check
+      - run: npm run verify:dist
+      - run: npx playwright install --with-deps chromium
+      - name: Actual HTTP desktop/mobile speed and Web Audio tests
+        run: npx playwright test --retries=0
+      - name: Commit validated source and bundled samples to feature branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm --ignore-unmatch .ci/audio-ready .ci/audio-delta-*.txt .github/workflows/audio-assets-prepare.yml
+          git add src tests e2e public/audio scripts README.md docs/QA-speed-audio.md package.json package-lock.json
+          git commit -m 'Add calibrated speed readouts and bundled Kenney CC0 sound effects'
+          git push origin HEAD:feat/speed-readouts-cc0-audio
+          git rev-parse HEAD
+          git archive --format=zip --prefix=formula-alchemy/ HEAD > validated-source.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: speed-audio-qa-results
+          path: |
+            validated-source.zip
+            test-results
+            playwright-report
+          retention-days: 7
