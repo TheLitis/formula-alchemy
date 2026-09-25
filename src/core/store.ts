@@ -10,13 +10,15 @@ export function initialState(): GameState {
     return { nodes: [
         { id: 'seed-m', parts: ['m'], x: 350, y: 300, params: standaloneDefaults(['m']), revision: 0, closed: true },
         { id: 'seed-g', parts: ['g'], x: 690, y: 300, params: standaloneDefaults(['g']), revision: 0, closed: true },
-    ], selectedId: null, discoveries: [], paused: false, speed: 1, grid: true, vectors: true, trails: true, music: false, sound: true, lab: 'sandbox', activeId: null };
+    ], selectedId: null, discoveries: [], paused: false, speed: 1, grid: true, vectors: true, speeds: true, trails: true, music: false, sound: true, lab: 'sandbox', activeId: null };
 }
+export type Feedback = 'drop' | 'craft' | 'discovery' | 'remove' | 'switch' | 'blackhole';
 export type NoticeKind = 'info' | 'success' | 'error';
 export class GameStore {
     private state: GameState;
     private listeners = new Set<() => void>();
     onNotice: (text: string, kind: NoticeKind) => void = () => {};
+    onFeedback: (event: Feedback) => void = () => {};
     onCraft: (sources: FormulaNode[], result: FormulaNode) => void = () => {};
     constructor(state: GameState = initialState()) { this.state = state; }
     getState = (): GameState => this.state;
@@ -43,6 +45,7 @@ export class GameStore {
         const id = uid();
         const node: FormulaNode = { id, parts: [symbol], x: clamp(x, 25, WIDTH - 25), y: clamp(y, 30, HEIGHT - 65), params: standaloneDefaults([symbol]), revision: 0, closed: true };
         this.patch({ nodes: [...this.state.nodes, node], selectedId: null, lab: 'sandbox', activeId: null });
+        this.onFeedback('drop');
         return id;
     }
     move(id: string, x: number, y: number) {
@@ -58,12 +61,14 @@ export class GameStore {
         if (!merged) { this.notify('Не соединяются: выберите совместимые символы.'); return false; }
         if (point) { merged.x = point.x; merged.y = point.y; }
         if (!merged.recipeId) merged.params = standaloneDefaults(merged.parts);
+        const isNew = merged.recipeId && !this.state.discoveries.some(d => d.recipeId === merged.recipeId);
         this.onCraft([a, b], merged);
         this.state = { ...this.state, nodes: [...this.state.nodes.filter(n => n.id !== b.id && (!sourceOnBoard || n.id !== a.id)), merged] };
         if (merged.recipeId) this.discover(merged.recipeId, 'craft');
         else this.notify('Промежуточная комбинация. Добавьте недостающий символ.');
         // The new phenomenon is visible; its formula appears only after explicitly selecting it.
         this.patch({ selectedId: null, activeId: null, lab: 'sandbox' });
+        this.onFeedback(merged.recipeId === 'blackhole' ? 'blackhole' : isNew ? 'discovery' : 'craft');
         return true;
     }
     combine(source: string, target: string, point?: { x: number; y: number }): boolean {
@@ -85,6 +90,7 @@ export class GameStore {
         this.state = { ...this.state, nodes: [...this.state.nodes, node] };
         this.discover(recipeId, 'book');
         this.focus(node.id);
+        this.onFeedback(recipeId === 'blackhole' ? 'blackhole' : 'discovery');
     }
     prepareRecipe(recipeId: string) {
         const recipe = RECIPE_MAP[recipeId];
@@ -93,6 +99,7 @@ export class GameStore {
         const nodes = recipe.inputs.map((symbol, i): FormulaNode => ({ id: uid(), parts: [symbol], x: 180 + i * (640 / Math.max(1, recipe.inputs.length - 1)), y: 290, params: standaloneDefaults([symbol]), revision: 0, closed: true }));
         this.patch({ nodes: [...this.state.nodes, ...nodes], selectedId: null, lab: 'sandbox', activeId: null });
         this.notify('Символы на холсте. Соедините их перетаскиванием.');
+        this.onFeedback('drop');
     }
     variant(nodeId: string, recipeId: string) {
         const node = this.state.nodes.find(n => n.id === nodeId), recipe = RECIPE_MAP[recipeId];
@@ -100,6 +107,7 @@ export class GameStore {
         this.state = { ...this.state, nodes: this.state.nodes.map(n => n.id === nodeId ? { ...n, recipeId, params: defaults(recipe), revision: n.revision + 1 } : n) };
         this.discover(recipeId, 'craft');
         this.focus(nodeId);
+        this.onFeedback('craft');
     }
     setParam(id: string, key: string, value: number) {
         if (!Number.isFinite(value)) return;
@@ -113,9 +121,9 @@ export class GameStore {
         this.patch({ nodes: this.state.nodes.map(n => n.id === id ? { ...n, params: { ...n.params, [key]: clean } } : n) });
     }
     restart(id: string) { this.patch({ nodes: this.state.nodes.map(n => n.id === id ? { ...n, revision: n.revision + 1 } : n) }); }
-    toggleCircuit(id: string) { this.patch({ nodes: this.state.nodes.map(n => n.id === id ? { ...n, closed: !n.closed } : n) }); }
-    remove(id: string) { const nodes = this.state.nodes.filter(n => n.id !== id); this.patch({ nodes, selectedId: this.state.selectedId === id ? null : this.state.selectedId, activeId: this.state.activeId === id ? null : this.state.activeId, lab: this.state.activeId === id ? 'sandbox' : this.state.lab }); }
-    reset() { this.patch({ nodes: [], selectedId: null, activeId: null, lab: 'sandbox', paused: false }); }
+    toggleCircuit(id: string) { this.patch({ nodes: this.state.nodes.map(n => n.id === id ? { ...n, closed: !n.closed } : n) }); this.onFeedback('switch'); }
+    remove(id: string, silent = false) { const existed = this.state.nodes.some(n => n.id === id); const nodes = this.state.nodes.filter(n => n.id !== id); this.patch({ nodes, selectedId: this.state.selectedId === id ? null : this.state.selectedId, activeId: this.state.activeId === id ? null : this.state.activeId, lab: this.state.activeId === id ? 'sandbox' : this.state.lab }); if (existed && !silent) this.onFeedback('remove'); }
+    reset() { this.patch({ nodes: [], selectedId: null, activeId: null, lab: 'sandbox', paused: false }); this.onFeedback('remove'); }
     load(state: GameState) {
         const known = new Map(this.state.discoveries.map(d => [d.recipeId, d]));
         for (const d of state.discoveries) if (!known.has(d.recipeId)) known.set(d.recipeId, d);

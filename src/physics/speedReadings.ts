@@ -1,0 +1,90 @@
+import Matter from 'matter-js';
+import { G } from '../core/evaluate';
+import { isApparatus } from '../core/entities';
+import { PX_PER_M } from '../core/types';
+import type { FormulaNode, GameState } from '../core/types';
+import type { PhysicsWorld } from './World';
+import { rodPosition } from './labModels';
+
+export interface SpeedReading {
+    key: string;
+    nodeId: string;
+    label: string;
+    value: number;
+    unit: 'м/с' | 'км/с' | 'c';
+    x: number;
+    y: number;
+    radius: number;
+    kind: 'body' | 'apparatus';
+    /** Waves carry phase, not their particles, through the medium. */
+    prefix?: string;
+}
+
+/** Shared with Renderer: moving a diagram does not change its physical velocity. */
+export function apparatusTransform(n: FormulaNode, lab: GameState['lab']) {
+    const scale = lab === 'sandbox' ? n.recipeId === 'gravitation' ? .9 : .64 : .94;
+    return { scale, tx: n.x - 500 * scale, ty: n.y - 360 * scale };
+}
+
+/** Exactly the analytic trajectories used in the diagrams, before display scaling. */
+export function apparatusSpeed(n: FormulaNode, age: number): SpeedReading | null {
+    const p = n.params;
+    const base = { key: `${n.id}/speed`, nodeId: n.id, kind: 'apparatus' as const, radius: 22, unit: 'м/с' as const };
+    switch (n.recipeId) {
+        case 'gravitation': {
+            const r = p.r * 1e6, gm = G * p.M * 1e24, omega = Math.sqrt(gm / r ** 3);
+            const a = omega * age * 200; // only the drawing runs at orbital time ×200
+            return { ...base, label: 'Спутник', value: Math.sqrt(gm / r) / 1000, unit: 'км/с',
+                x: 500 + Math.cos(a) * p.r * 17, y: 365 + Math.sin(a) * p.r * 17, radius: 12 };
+        }
+        case 'springPeriod': {
+            const omega = Math.sqrt(p.k / p.m);
+            return { ...base, label: 'Груз на пружине', value: Math.abs(p.amplitude * omega * Math.sin(omega * age)),
+                x: 500 + Math.cos(omega * age) * p.amplitude * PX_PER_M, y: 310 };
+        }
+        case 'pendulum': {
+            const omega = Math.sqrt(p.g / p.L), theta = .20944 * Math.cos(omega * age);
+            return { ...base, label: 'Груз маятника', value: Math.abs(p.L * .20944 * omega * Math.sin(omega * age)),
+                x: 490 + Math.sin(theta) * p.L * 52, y: 180 + Math.cos(theta) * p.L * 52, radius: 17 };
+        }
+        case 'wave':
+            return { ...base, label: 'Скорость распространения волны', prefix: 'волна',
+                value: p.lambda * p.f, x: 520, y: 208, radius: 8 };
+        case 'lengthContraction': {
+            const contracted = p.L * Math.sqrt(1 - p.beta ** 2) * 56;
+            return { ...base, label: 'Движущийся стержень', value: p.beta, unit: 'c',
+                x: rodPosition(contracted, p.beta, age) + contracted / 2, y: 427, radius: 28 };
+        }
+        // Thermal dots, light packets, circuit markers, nuclei and field-source handles
+        // have no calibrated material velocity. Never label their screen motion as m/s.
+        default: return null;
+    }
+}
+
+export function collectSpeedReadings(state: GameState, world: PhysicsWorld, ages: ReadonlyMap<string, number>): SpeedReading[] {
+    const readings: SpeedReading[] = [];
+    if (state.lab === 'sandbox') {
+        for (const item of world.bodies.values()) {
+            if (!item.label || item.body.isSensor) continue; // black-hole dust is artwork
+            const velocity = Matter.Body.getVelocity(item.body);
+            const speed = item.body.isStatic ? 0 : Math.hypot(velocity.x, velocity.y) * 60 / PX_PER_M;
+            if (!Number.isFinite(speed)) continue;
+            readings.push({ key: item.key, nodeId: item.owner, label: item.label, kind: 'body',
+                value: speed, unit: 'м/с', x: item.body.position.x, y: item.body.position.y, radius: item.radius });
+        }
+    }
+    for (const n of state.nodes) {
+        if (!isApparatus(n) || (state.lab !== 'sandbox' && n.id !== state.activeId)) continue;
+        const reading = apparatusSpeed(n, ages.get(n.id) ?? 0);
+        if (!reading || !Number.isFinite(reading.value)) continue;
+        const { scale, tx, ty } = apparatusTransform(n, state.lab);
+        readings.push({ ...reading, x: tx + reading.x * scale, y: ty + reading.y * scale, radius: reading.radius * scale });
+    }
+    return readings;
+}
+
+export function speedText(reading: Pick<SpeedReading, 'value' | 'unit'>): string {
+    const digits = reading.unit === 'c' ? 2 : 1;
+    const value = Math.abs(reading.value) < .5 * 10 ** -digits ? 0 : reading.value;
+    return `${value.toFixed(digits).replace('.', ',')} ${reading.unit}`;
+}

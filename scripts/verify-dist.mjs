@@ -1,5 +1,6 @@
 /** Check that Vite emitted relative, local HTML/CSS resources before deployment. */
 import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
@@ -30,3 +31,13 @@ async function walk(dir) {
 }
 await walk(root);
 console.log(`Production asset paths verified: ${checked} local HTML/CSS references.`);
+
+const credits = JSON.parse(await fs.readFile(path.join(root, 'audio/credits.json'), 'utf8'));
+if (credits.files.length !== 10) throw new Error('Incomplete CC0 sound bank');
+for (const audio of credits.files) {
+    if (!/^[a-z-]+\.wav$/.test(audio.file)) throw new Error('Unsafe audio filename');
+    const bytes = await fs.readFile(path.join(root, 'audio', audio.file));
+    if (bytes.toString('ascii', 0, 4) !== 'RIFF' || createHash('sha256').update(bytes).digest('hex') !== audio.sha256)
+        throw new Error(`Corrupt or missing audio: ${audio.file}`);
+}
+console.log(`Bundled CC0 sound paths and hashes verified: ${credits.files.length} WAV files.`);

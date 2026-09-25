@@ -13,6 +13,7 @@ export class SimulationRuntime {
     time = 0;
     ages = new Map<string, number>();
     heldNode: string | null = null;
+    onCaptureFeedback: (x: number) => void = () => {};
     private revisions = new Map<string, number>();
     private accumulator = 0;
     private unsubscribe: () => void;
@@ -25,6 +26,7 @@ export class SimulationRuntime {
         store.onCraft = (sources, result) => this.fx.craft(sources.map(n => ({ ...n, ...this.world.positionFor(n) })), result);
         this.world.onAbsorb = (item, hole) => {
             this.fx.capture(item.body.position.x, item.body.position.y, hole.x, hole.y, item.label);
+            if (item.label) this.onCaptureFeedback(item.body.position.x);
             if (item.label && item.owner !== 'free' && item.owner !== hole.id) this.capturedOwners.add(item.owner);
         };
     }
@@ -56,7 +58,7 @@ export class SimulationRuntime {
                     if (Math.hypot(dx, dy) < h.radius + 6) {
                         this.capturedOwners.add(node.id); this.world.absorbed.add(`node/${node.id}`);
                         if (this.world.absorbed.size > MAX_BODIES * 2) this.world.absorbed.delete(this.world.absorbed.values().next().value!);
-                        this.fx.capture(p.x, p.y, h.x, h.y, node.recipeId ? '' : node.parts.join('')); break;
+                        this.fx.capture(p.x, p.y, h.x, h.y, node.recipeId ? '' : node.parts.join('')); this.onCaptureFeedback(p.x); break;
                     }
                     const a = blackHoleAcceleration(dx, dy, hole.params.M, h.radius), damping = Math.exp(-.6 * dt);
                     v.vx = (v.vx + a.x * PX_PER_M * dt) * damping; v.vy = (v.vy + a.y * PX_PER_M * dt) * damping;
@@ -68,7 +70,7 @@ export class SimulationRuntime {
         }
         if (steps === 24) this.accumulator = Math.min(this.accumulator, dt);
         if (positions.size) this.store.moveMany(positions);
-        for (const id of this.capturedOwners) if (![...this.world.bodies.values()].some(b => b.owner === id)) this.store.remove(id);
+        for (const id of this.capturedOwners) if (![...this.world.bodies.values()].some(b => b.owner === id)) this.store.remove(id, true);
         this.capturedOwners.clear();
     }
     snapshot(): RuntimeSnapshot { return { time: this.time, ages: Object.fromEntries(this.ages), bodies: this.world.snapshot(), absorbed: [...this.world.absorbed] }; }

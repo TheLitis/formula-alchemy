@@ -1,3 +1,4 @@
+import { SpeedReadout } from './SpeedReadout';
 import { isApparatus, standaloneDescription, standaloneParameters } from '../core/entities';
 import { ParameterControls } from './ParameterControls';
 import { useGame, useRuntimeTick, useSession } from '../app/session';
@@ -27,7 +28,7 @@ export function Inspector({ open, onClose, onBook }: {
       <div className="recipe-meta">{TOPICS.find(t => t.id === recipe.topic)?.short} <span>· {recipe.grade} кл.</span></div>
       <h2 className="recipe-title">{recipe.title}</h2><div className="inspector-formula"><Formula tex={recipe.tex} block/></div>
       <div className="reading" aria-live="off"><span className="reading-label">{recipe.id === 'decay' ? 'На текущий момент' : 'Расчёт по формуле'}</span><div><strong data-testid="reading-value">{reading.note === 'Полное внутреннее отражение' ? 'ПВО' : formatValue(reading.value)}</strong><span>{reading.note === 'Полное внутреннее отражение' ? '' : reading.unit}</span></div>{reading.note && <small>{reading.note}</small>}</div>
-      <ParameterControls node={node} definitions={recipe.params}/>
+      <SpeedReadout nodeId={node.id}/><ParameterControls node={node} definitions={recipe.params}/>
       {recipe.lab === 'circuits' && <button className="button outline full" onClick={() => store.toggleCircuit(node.id)}>{node.closed ? 'Разомкнуть цепь' : 'Замкнуть цепь'} <span className={`circuit-dot ${node.closed ? 'is-on' : ''}`}/></button>}
       {isApparatus(node) && <button className="button outline full" onClick={() => { if (state.lab === 'sandbox') store.focus(node.id); else store.patch({ lab: 'sandbox', activeId: null }); }}>{state.lab === 'sandbox' ? 'Развернуть лабораторию' : 'Вернуть на общий холст'} <Icon name="arrow" size={16}/></button>}
       <button className="button outline full restart-experiment" onClick={() => store.restart(node.id)}><Icon name="reset" size={16}/> Перезапустить опыт</button>
@@ -37,7 +38,7 @@ export function Inspector({ open, onClose, onBook }: {
       {possibilities.some(r => r.inputs.length > node.parts.length) && <section className="next-steps"><h3>Продолжить комбинацию</h3>{possibilities.filter(r => r.inputs.length > node.parts.length).slice(0, 2).map(r => <div key={r.id}><span>{r.title}</span>{missingParts(node.parts, r).map(id => <button key={id} onClick={() => store.dropSymbol(id, node.id)} title={`Добавить ${SYMBOL_MAP[id].name}`}><span>+</span><Formula tex={SYMBOL_MAP[id].tex}/></button>)}</div>)}</section>}
     </> : <>
       <div className="intro-glyph"><Formula tex={node.parts.map(id => SYMBOL_MAP[id].tex).join('\\,')}/></div><h2 className="serif">{node.parts.length === 1 ? SYMBOL_MAP[node.parts[0]].name : 'Промежуточная комбинация'}</h2><p className="muted">{node.parts.length === 1 ? `Единица СИ: ${SYMBOL_MAP[node.parts[0]].unit}. ` : ''}{standaloneDescription(node)}</p>
-      <ParameterControls node={node} definitions={standaloneParameters(node.parts)}/>
+      <SpeedReadout nodeId={node.id}/><ParameterControls node={node} definitions={standaloneParameters(node.parts)}/>
       {standaloneParameters(node.parts).length > 0 && <button className="button outline full restart-experiment" onClick={() => store.restart(node.id)}><Icon name="play" size={16}/> Повторить с заданной скоростью</button>}
       <h3 className="section-caption standalone-next">Что можно получить</h3><div className="suggestions">{possibilities.map(r => <div className="suggestion" key={r.id}><span>{r.title}</span><Formula tex={r.tex}/><div>{missingParts(node.parts, r).map(id => <button key={id} title={`Добавить ${SYMBOL_MAP[id].name}`} onClick={() => store.dropSymbol(id, node.id)}><span>+</span><Formula tex={SYMBOL_MAP[id].tex}/></button>)}</div></div>)}</div>
       <button className="text-button" onClick={onBook}>Все рецепты <Icon name="arrow" size={16}/></button>

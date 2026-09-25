@@ -102,6 +102,7 @@ export function validateSave(input: unknown): SavedExperiment {
     speed: s.speed as number,
     grid: bool(s.grid),
     vectors: bool(s.vectors),
+    speeds: s.speeds === undefined ? true : bool(s.speeds),
     trails: bool(s.trails),
     music: bool(s.music),
     sound: bool(s.sound),
