@@ -1,20 +1,62 @@
-# QA: speeds and CC0 samples
+# QA: скорости и звуковые эффекты CC0 — v1.3.0
 
-Base: main `51d4ba8` (merged PR #1). No redesign or change to the 48 recipes.
+База: `main` / `51d4ba8` (объединённый PR #1). Все 48 рецептов и прямое управление сохранены; это не переработка дизайна.
 
-## Local checks completed
+Проверенная функциональная ревизия: `0e745d0d70bd42c89ccb9e140574d2d92abc554a`.
+Успешный GitHub Actions run: https://github.com/TheLitis/formula-alchemy/actions/runs/36196787642
+Дата выполнения: 2026-09-25, 22:27–22:29 UTC. Следующее изменение затрагивает только этот отчёт.
 
-- 152/152 Vitest tests passed (8 files); includes the previous 124 regressions.
-- TypeScript and Vite production build passed, with the exact installed lockfile dependencies.
-- 65 local HTML/CSS resource paths and 10 bundled WAV hashes verified.
-- Actual CC0 sample files downloaded from Kenney; original licenses retained. WAV peaks ≤ -3 dBFS; 44.1 kHz / 16 bit mono; 414266 bytes combined.
+## Результат
 
-## Browser verification
+| Проверка | Результат |
+| --- | --- |
+| Vitest: вычисления, Matter.js, сохранения, скорость, жизненный цикл аудио | 152/152, 8 файлов |
+| TypeScript и production-сборка Vite | Пройдены |
+| Локальные пути ресурсов HTML/CSS | 65 проверены |
+| Настоящие WAV: заголовок, SHA-256, исходная лицензия, уровень сигнала | 10/10 |
+| Playwright на HTTP production-сборке | 36/36, без retries |
+| Предыдущие регрессии, включая перенос всех 48 рецептов | 22/22 сценария |
+| Новые сценарии скоростей и реального Web Audio | 14/14 сценариев |
 
-36 Playwright scenarios defined: 22 existing direct-manipulation regressions and 14 new desktop/mobile speed/audio cases. Full HTTP verification runs in GitHub Actions under `/formula-alchemy/`. This section will be updated with the completed run before handoff.
+## Среда и метод
 
-Browser plugin not available. Local Chromium rejects localhost with a managed URL policy; it is not bypassed. CI uses an independent, ordinary HTTP browser test environment, real React/Matter.js/Web Audio and the real decoded WAV files. Unit audio lifecycle tests use mocks and are not represented as listening tests.
+GitHub Actions, Ubuntu 24.04.5, Node 22.23.2, Playwright 1.57.0 / Chromium 143.0.7499.4. ПК: 1440×900 CSS px. Мобильный профиль Pixel 7: 412×839 CSS px, touch и DPR 2.625. Production-приложение обслуживалось по HTTP из `dist` под `/formula-alchemy/`.
 
-## Limits
+Browser plugin отсутствует. Локальный управляемый Chromium запрещает localhost; запрет не обходился. Проверки выполнены обычным Playwright в CI. React, Matter.js, Canvas и Web Audio в браузерных тестах настоящие, звуковые файлы действительно декодируются. Mock-объекты используются только в отдельных unit-тестах жизненного цикла аудио.
 
-Wave labels mean propagation speed. Analytic orbit time is accelerated only visually. No material speeds are invented for decorative or uncalibrated animation. Label collision avoidance may suppress labels in dense scenes; the selected object's inspector retains the readout. No real iPhone/Safari or listening-on-speakers evaluation is claimed. Optional background music is unchanged and procedural.
+Команды:
+
+```bash
+npm ci
+npm run check
+npm run verify:dist
+npx playwright install --with-deps chromium
+npx playwright test --retries=0
+```
+
+## Проверенные взаимодействия
+
+- Открыть кинетический опыт → увидеть 4,0 м/с у тела → выбрать его → получить то же значение в инспекторе. Переключение темпа на 4× само по себе не изменяет физическую скорость.
+- Продвинуть падающее тело на два временных интервала → значение увеличивается; пауза фиксирует подпись и пиксели.
+- Открыть поля и чёрную дыру → нет фиктивных скоростей полей/декоративной пыли. Спутник получает км/с; у волны явно подписана скорость распространения.
+- Отключить «Скорости тел» → исчезают подписи, а векторы остаются независимыми. Флаг сохраняется в снимке; старые сохранения без нового поля загружаются.
+- Первое действие пользователя → 10 файлов загружаются по правильному пути Pages ровно один раз. Их декодированные каналы содержат ненулевой сигнал.
+- Запустить новый сэмпл → измерить сигнал через настоящий AnalyserNode → нажать выключение звуков → активные эффекты остановлены, выход становится тихим. Музыка управляется независимо.
+- Соединить m и g мышью → воспроизводится загруженный звук открытия, без осцилляторного эффекта.
+- Выключить звук, пока сеть задерживает загрузку → после завершения загрузки отложенный щелчок не воспроизводится.
+
+## Визуальная проверка
+
+Просмотрены реальные CI-скриншоты `speed-body.png` и `speed-orbit.png` в обоих профилях. Подписи не имеют карточек, не перекрывают символы в проверенных сценах и остаются читаемыми на телефоне. Проверены единицы, расположение рядом с объектом, сохранение чистой палитры без подложек, отсутствие формул поверх сцены и доступность раздельных кнопок звука/музыки в мобильной шапке. Скриншоты находятся в артефакте `speed-audio-qa-results`, а не в исходном дереве.
+
+## Источники звуков
+
+Kenney: Interface Sounds, Impact Sounds, Sci-fi Sounds, лицензия CC0 1.0. Оригинальные лицензии находятся в `public/audio/LICENSE-*.txt`; точные исходные файлы, ссылки, преобразования и контрольные суммы — в `public/audio/credits.json`.
+
+10 эффектов занимают 414266 байт, PCM WAV / 44,1 кГц / 16 бит / моно, пик не выше −3 dBFS. Уже включены в исходники: для обычного npm-запуска не нужны ffmpeg или скачивание звуков с чужого сайта. `scripts/import-cc0-audio.py` — только инструмент сопровождения для повторяемого импорта из закреплённых архивов автора.
+
+## Ограничения
+
+Скорость волны — скорость фазы, не частиц среды. Орбитальное время ускорено только для визуализации. Непрокалиброванным декоративным анимациям не приписывается скорость в м/с. В плотной сцене перекрывающиеся подписи могут скрываться; выбранный объект сохраняет числовой индикатор в инспекторе. Максимум одновременно выводится 14 подписей на ПК и 7 на телефоне.
+
+Реальный iPhone/Safari, аппаратная задержка аудиовыхода и прослушивание на физических колонках/наушниках не проверялись. Наличие сигнала, его ограничение и отключение подтверждены программно. Необязательная фоновая музыка осталась прежней, процедурной; заменены именно звуковые эффекты. Этот PR сам по себе не публикует сайт: публикация штатным workflow выполняется после объединения с main.
