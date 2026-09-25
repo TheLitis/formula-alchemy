@@ -1,0 +1,26 @@
+name: Prepare CC0 audio inputs
+on:
+  push:
+    branches: [feat/speed-readouts-cc0-audio]
+    paths: [.github/workflows/audio-assets-prepare.yml]
+permissions:
+  contents: read
+jobs:
+  fetch-audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the three CC0 packs from their author's site
+        run: |
+          mkdir -p /tmp/cc0-audio
+          curl --fail --location --retry 2 --max-time 90 'https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip' -o /tmp/cc0-audio/interface.zip
+          curl --fail --location --retry 2 --max-time 90 'https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip' -o /tmp/cc0-audio/impact.zip
+          curl --fail --location --retry 2 --max-time 90 'https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip' -o /tmp/cc0-audio/scifi.zip
+          git archive --format=zip HEAD > /tmp/cc0-audio/source-baseline.zip
+          sha256sum /tmp/cc0-audio/*.zip > /tmp/cc0-audio/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kenney-cc0-source-inputs
+          path: /tmp/cc0-audio
+          retention-days: 3
