@@ -1,0 +1,33 @@
+name: Reference interaction QA
+on:
+  push:
+    branches: [fix/direct-manipulation-fields]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reference-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run verify:dist
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --retries=0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-qa-report
+          path: |
+            test-results
+            playwright-report
+          retention-days: 7

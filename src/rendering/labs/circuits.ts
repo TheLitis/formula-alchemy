@@ -1,3 +1,4 @@
+import { capacitorMarkerTravel } from '../../physics/labModels';
 import { formatValue } from '../../core/evaluate';
 import { circle, FAINT, INK, line, MUTED, PAPER, polyline, rect, text } from '../primitives';
 import type { DrawContext, EffectRenderer } from '../primitives';
@@ -5,13 +6,13 @@ function resistor(c: CanvasRenderingContext2D, x: number, y: number, label: stri
 function dots(c: CanvasRenderingContext2D, path: {
     x: number;
     y: number;
-}[], current: number, time: number) {
+}[], current: number, time: number, integratedTravel?: number) {
     if (current <= 1e-7)
         return;
     const lengths = path.slice(1).map((v, i) => Math.hypot(v.x - path[i].x, v.y - path[i].y)), total = lengths.reduce((a, b) => a + b, 0);
     const speed = 35 * Math.min(8, Math.sqrt(current));
     for (let i = 0; i < 18; i++) {
-        let dist = (i * total / 18 + time * speed) % total;
+        let dist = (i * total / 18 + (integratedTravel ?? time * speed)) % total;
         for (let j = 0; j < lengths.length; j++) {
             if (dist <= lengths[j]) {
                 const t = dist / lengths[j];
@@ -49,7 +50,7 @@ const circuit: EffectRenderer = (d: DrawContext) => {
         dots(c, [{ x: 700, y: 235 }, ...path.slice(3)], I, age);
     }
     else {
-        dots(c, path, I, age);
+        dots(c, path, I, age, id === 'capacitor' ? capacitorMarkerTravel(U / p.R, p.R * p.C * .001, age) : undefined);
         if (id === 'series') {
             resistor(c, 455, 235, `R₁ = ${p.R} Ом`);
             resistor(c, 640, 235, `R₂ = ${p.R2} Ом`);

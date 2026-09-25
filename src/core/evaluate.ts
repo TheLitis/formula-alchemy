@@ -16,6 +16,17 @@ export function calculate(id: string, p: Record<string, number>, elapsed = 0): R
     let value: number;
     let note: string | undefined;
     switch (id) {
+        case 'gravitySource':
+        case 'inverseGravity':
+            value = G * p.M * 1e12 / p.r ** 2;
+            break;
+        case 'crossedFields':
+            value = p.B === 0 ? Infinity : Math.abs(p.E / p.B);
+            if (p.B === 0) note = 'Магнитное поле отсутствует';
+            break;
+        case 'magneticCoil':
+            value = 4 * Math.PI * 1e-7 * p.mu_m * p.I / (2 * p.r);
+            break;
         case 'weight':
             value = p.m * p.g;
             break;

@@ -1,7 +1,7 @@
 import { calculate, formatValue, radians } from '../../core/evaluate';
 import { arrow, circle, FAINT, INK, line, MUTED, PAPER, rect, text } from '../primitives';
 import type { EffectRenderer } from '../primitives';
-const snell: EffectRenderer = ({ c, node }) => {
+const snell: EffectRenderer = ({ c, node, age }) => {
     const p = node.params, theta = radians(p.theta), reading = calculate('snell', p), tir = !!reading.note, theta2 = radians(reading.value), cx = 500, cy = 345;
     rect(c, 110, 345, 780, 235, '#e8e8e8', null);
     line(c, 110, 345, 890, 345, MUTED, 1.5);
@@ -21,6 +21,8 @@ const snell: EffectRenderer = ({ c, node }) => {
     }
     else
         arrow(c, cx, cy, rx, ry, INK, 2);
+    const endX = tir ? rx : cx + Math.sin(theta2) * 235, endY = tir ? ry : cy + Math.cos(theta2) * 235;
+    lightPackets(c, [{ x: sx, y: sy }, { x: cx, y: cy }, { x: endX, y: endY }], age);
     c.beginPath();
     c.arc(cx, cy, 54, -Math.PI / 2 - theta, -Math.PI / 2);
     c.strokeStyle = MUTED;
@@ -28,7 +30,7 @@ const snell: EffectRenderer = ({ c, node }) => {
     text(c, `${p.theta}°`, cx - 25, cy - 80, 20, INK, 'right');
     text(c, tir ? 'Полное внутреннее отражение' : 'Углы отсчитываются от нормали', 500, 625, 23, INK, 'center', true);
 };
-const lens: EffectRenderer = ({ c, node }) => {
+const lens: EffectRenderer = ({ c, node, age }) => {
     const p = node.params, b = calculate('lens', p).value, scale = 4, cx = 500, cy = 340, ox = cx - p.d * scale, oy = 270, focus = p.focus * scale;
     line(c, 90, cy, 920, cy, FAINT, 1);
     c.save();
@@ -48,6 +50,8 @@ const lens: EffectRenderer = ({ c, node }) => {
     line(c, ox, oy, cx, oy, INK, 1.3);
     line(c, cx, oy, 920, oy + (920 - cx) * 70 / focus, INK, 1.3);
     line(c, ox, oy, 920, cy + (920 - cx) * 70 / (p.d * scale), MUTED, 1.3);
+    lightPackets(c, [{ x: ox, y: oy }, { x: cx, y: oy }, { x: 920, y: oy + 420 * 70 / focus }], age);
+    lightPackets(c, [{ x: ox, y: oy }, { x: cx, y: cy }, { x: 920, y: cy + 420 * 70 / (p.d * scale) }], age + .6);
     if (Number.isFinite(b)) {
         const ix = cx + b * scale, iy = cy + 70 * b / p.d;
         if (b < 0) {
@@ -66,4 +70,15 @@ const lens: EffectRenderer = ({ c, node }) => {
         text(c, 'd = F: лучи параллельны, b → ∞', 500, 626, 25, INK, 'center', true);
     }
 };
+function lightPackets(c: CanvasRenderingContext2D, path: { x: number; y: number }[], time: number) {
+    const lengths = path.slice(1).map((p, i) => Math.hypot(p.x - path[i].x, p.y - path[i].y));
+    const total = lengths.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < 4; i++) {
+        let distance = (Math.max(0, time) * 100 + i * total / 4) % total;
+        for (let j = 0; j < lengths.length; j++) {
+            if (distance < lengths[j]) { const t = distance / lengths[j]; circle(c, path[j].x + (path[j + 1].x - path[j].x) * t, path[j].y + (path[j + 1].y - path[j].y) * t, 2.6, INK, null); break; }
+            distance -= lengths[j];
+        }
+    }
+}
 export const opticsEffects: Record<string, EffectRenderer> = { snell, lens };

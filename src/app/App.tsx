@@ -52,12 +52,29 @@ export function App() {
                     store.remove(id);
                 }
             }
+            if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
+                e.preventDefault();
+                const current = store.getState(), nodes = current.nodes;
+                if (nodes.length) {
+                    const index = nodes.findIndex(n => n.id === current.selectedId);
+                    store.select(nodes[(index + (e.code === 'BracketLeft' ? -1 : 1) + nodes.length) % nodes.length].id);
+                }
+            }
+            if (e.key.startsWith('Arrow')) {
+                const current = store.getState(), n = current.nodes.find(n => n.id === current.selectedId);
+                const delta = ({ ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] } as Record<string, number[]>)[e.key];
+                if (n && delta) {
+                    e.preventDefault(); const p = runtime.world.positionFor(n), b = runtime.world.bodies.get(`${n.id}/0`);
+                    if (b) { runtime.world.hold(b.key); runtime.world.drag(p.x + delta[0], p.y + delta[1]); runtime.world.release(); }
+                    else store.move(n.id, p.x + delta[0], p.y + delta[1]);
+                }
+            }
             if (e.key === '?')
                 setModal('help');
         };
         document.addEventListener('keydown', key);
         return () => document.removeEventListener('keydown', key);
-    }, [store, modal]);
+    }, [store, runtime, modal]);
     const toggleMusic = async () => { try {
         await audio.unlock();
         store.patch({ music: !store.getState().music });
@@ -69,7 +86,7 @@ export function App() {
       <nav aria-label="Основная навигация"><button className={`nav-button ${!modal ? 'nav-active' : ''}`} onClick={() => { setModal(null); store.patch({ lab: 'sandbox', activeId: null, selectedId: null }); }}><Icon name="flask" size={17}/><span>Лаборатория</span></button><button className="nav-button" aria-label="Книга формул" onClick={() => setModal('book')}><Icon name="book" size={17}/><span>Книга формул</span></button><button className="nav-button" aria-label={`Открытия: ${state.discoveries.length}`} onClick={() => setModal('journal')}><Icon name="journal" size={17}/><span>Открытия</span><span className="nav-count">{state.discoveries.length}</span></button></nav>
       <div className="header-tools"><button className={`icon-button music-toggle ${state.music ? 'active' : ''}`} title={state.music ? 'Выключить музыку' : 'Включить музыку'} aria-label={state.music ? 'Выключить музыку' : 'Включить музыку'} aria-pressed={state.music} onClick={() => { void toggleMusic(); }}><Icon name="music" size={17}/></button><button className="icon-button sound-toggle" aria-label={state.sound ? 'Выключить звуки' : 'Включить звуки'} title={state.sound ? 'Выключить звуки' : 'Включить звуки'} aria-pressed={state.sound} onClick={() => { void audio.unlock().catch(() => { }); store.patch({ sound: !state.sound }); }}><Icon name={state.sound ? 'volume' : 'muted'} size={17}/></button><button className="button dark header-save" aria-label="Сохранить" onClick={() => setModal('save')}><Icon name="save" size={16}/><span>Сохранить</span></button></div>
     </header>
-    <div className="app-content"><Palette onBook={() => setModal('book')}/><Stage onReset={() => setModal('reset')} onHelp={() => setModal('help')} onInspect={() => setInspectOpen(!inspectOpen)}/>{inspectOpen && <button className="inspector-scrim" aria-label="Закрыть панель параметров" onClick={() => setInspectOpen(false)}/>}<Inspector open={inspectOpen} onClose={() => setInspectOpen(false)} onBook={() => setModal('book')}/></div>
+    <div className="app-content"><Palette onBook={() => setModal('book')}/><Stage onReset={() => setModal('reset')} onHelp={() => setModal('help')} onInspect={() => setInspectOpen(true)}/>{inspectOpen && <button className="inspector-scrim" aria-label="Закрыть панель параметров" onClick={() => setInspectOpen(false)}/>}<Inspector open={inspectOpen} onClose={() => setInspectOpen(false)} onBook={() => setModal('book')}/></div>
     <footer className="app-footer"><span>Любопытство — единственная предпосылка.</span><span>{RECIPES.length} физических рецепта <span className="footer-dot">·</span> 7–11 классы</span></footer>
   </div>
   {modal === 'book' && <FormulaBook onClose={close}/>}{modal === 'journal' && <Journal onClose={close}/>}{modal === 'save' && <SaveManager onClose={close}/>}{modal === 'help' && <Help onClose={close}/>}{modal === 'reset' && <Dialog title="Начать с чистого листа?" subtitle="Элементы и физические тела будут удалены. Журнал открытий сохранится." onClose={close} className="confirm-dialog"><div className="confirm-actions"><button className="button outline" onClick={close}>Продолжить опыт</button><button className="button dark" onClick={() => { store.reset(); runtime.reset(); close(); store.notify('Холст очищен. Открытия остались в журнале.'); }}>Очистить холст</button></div></Dialog>}

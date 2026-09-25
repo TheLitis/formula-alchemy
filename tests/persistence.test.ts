@@ -30,5 +30,18 @@ describe('versioned and validated experiments', () => {
         expect(s.getState().music).toBe(false);
         expect(s.getState().discoveries.map(d => d.recipeId).sort()).toEqual(['bohr', 'ohm']);
     });
-    it('snapshots do not retain mutable references', () => { const s = new GameStore(), x = makeSave(s.getState(), { time: 0, ages: {}, bodies: [], absorbed: [] }, 'x'); x.state.nodes[0].x = 999; expect(s.getState().nodes[0].x).toBe(380); });
+    it('snapshots do not retain mutable references', () => { const s = new GameStore(), x = makeSave(s.getState(), { time: 0, ages: {}, bodies: [], absorbed: [] }, 'x'); x.state.nodes[0].x = 999; expect(s.getState().nodes[0].x).toBe(350); });
+});
+
+describe('standalone fields and unlabelled dust', () => {
+    it('preserves signed fields and charge parameters including direction', () => {
+        const store = new GameStore(); store.reset();const id=store.addToken('B',320,300)!;store.setParam(id,'B',-2);store.setParam(id,'extent',7);
+        const charge=store.addToken('q',600,350)!;store.setParam(charge,'q',-1.5);store.setParam(charge,'v',5);
+        const save=makeSave(store.getState(),{time:0,ages:{},bodies:[],absorbed:[]},'Поля');
+        expect(parseSave(JSON.stringify(save)).state.nodes).toEqual(save.state.nodes);
+    });
+    it('accepts blank render labels on physical dust without allowing blank body keys',()=>{
+        const s=new GameStore();const save=makeSave(s.getState(),{time:0,ages:{},bodies:[{key:'dust',owner:'free',x:400,y:300,vx:0,vy:0,angle:0,av:0,mass:.05,radius:5,label:''}],absorbed:[]},'Пыль');
+        expect(parseSave(JSON.stringify(save)).runtime.bodies[0].label).toBe('');save.runtime.bodies[0].key='';expect(()=>parseSave(JSON.stringify(save))).toThrow();
+    });
 });
