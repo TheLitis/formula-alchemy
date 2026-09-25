@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { RECIPES } from '../src/core/catalog';
 async function book(page: Page) { await page.getByRole('button', { name: 'Книга формул', exact: true }).click(); await expect(page.getByRole('dialog')).toBeVisible(); }
 async function open(page: Page, id: string) { await book(page); await page.getByTestId(`recipe-${id}`).getByRole('button', { name: /: открыть опыт$/ }).click(); }
-async function parameters(page: Page) { const b = page.getByRole('button', { name: 'Параметры', exact: true }); if (await b.isVisible())
+async function parameters(page: Page) { const b = page.locator('.parameters-trigger'); if (await b.isVisible())
     await b.click(); }
 async function closeParameters(page: Page) { const b = page.getByRole('button', { name: 'Закрыть параметры', exact: true }); if (await b.isVisible())
     await b.click(); }
