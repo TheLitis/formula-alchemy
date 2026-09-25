@@ -1,0 +1,35 @@
+name: Reference interaction QA
+on:
+  push:
+    branches: [fix/direct-manipulation-fields]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reference-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Package exact source and dependencies for offline browser verification
+        run: |
+          tar --exclude='./.git' --exclude='./node_modules' --exclude='./source-qa.tar.gz' -czf /tmp/source-qa.tar.gz .
+          tar -czf /tmp/dependencies-qa.tar.gz node_modules
+          cp /tmp/source-qa.tar.gz /tmp/dependencies-qa.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reference-qa-inputs
+          path: |
+            source-qa.tar.gz
+            dependencies-qa.tar.gz
+          retention-days: 2
+      - run: npm run check
+      - run: npm run verify:dist
