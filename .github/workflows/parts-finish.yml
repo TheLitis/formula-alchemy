@@ -1,0 +1,86 @@
+name: Verify component gestures strictly
+on:
+  push:
+    branches: [feat/parts-clipboard-wasd]
+    paths: [.github/workflows/parts-finish.yml]
+permissions:
+  contents: write
+defaults:
+  run:
+    shell: bash
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Do not open the mobile inspector over a clicked actuator
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          p=Path('src/app/usePointerCraft.ts');s=p.read_text()
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='721b906f5ef848b451cf793cd56189d40f0a6b3d96906ad097959e8706d58817'
+          old='                if(d.part&&d.hit?.partClick)d.part.click();'
+          assert s.count(old)==1
+          p.write_text(s.replace(old,'                // A direct switch/level is an actuator: do not cover it with the mobile inspector.\n                if(d.part&&d.hit?.partClick){d.part.click();clean();return;}'))
+          p=Path('e2e/parts-clipboard.spec.ts');s=p.read_text()
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='9cc4d4d30ab5899cc122f1010fe992c72367fd8636bcb4483c180a83f5e23394'
+          old="expect((await snap(page)).state.nodes[0].closed).toBe(false);\n    const a=await seed(page,'bohr')"
+          assert s.count(old)==1
+          s=s.replace(old,"expect((await snap(page)).state.nodes[0].closed).toBe(false);await expect(page.locator('.inspector-open')).toHaveCount(0);\n    const a=await seed(page,'bohr')")
+          old="expect((await snap(page)).state.nodes[0].params.n).toBe(3);\n});"
+          assert s.count(old)==1
+          s=s.replace(old,"expect((await snap(page)).state.nodes[0].params.n).toBe(3);await expect(page.locator('.inspector-open')).toHaveCount(0);\n    for(const index of [0,4,2]){const next=await target(page,a,'bohr-level',index),p=await screen(page,next.x,next.y);await page.mouse.click(p.x,p.y);expect((await snap(page)).state.nodes[0].params.n).toBe(index+1);}\n});")
+          p.write_text(s)
+          PY
+      - run: npm ci
+      - name: Typecheck, physics and production build
+        run: |
+          set -euo pipefail
+          npm run check 2>&1 | tee parts-check.log
+      - name: Resources and untouched audio
+        run: |
+          npm run verify:dist
+          test -z "$(git diff 809269c92c9b95e1fe7c8696895c8ae4f43136a6 --name-only -- public/audio src/audio)"
+      - run: npx playwright install --with-deps chromium
+      - name: All desktop and mobile HTTP tests, no retry
+        run: |
+          set -euo pipefail
+          npx playwright test --retries=0 2>&1 | tee parts-e2e.log
+      - name: Commit only after all checks actually pass
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/parts-finish.yml
+          git add src/app/usePointerCraft.ts e2e/parts-clipboard.spec.ts
+          git commit -m 'Keep mobile circuit keys and atomic levels directly operable without covering the scene'
+          git push origin HEAD:feat/parts-clipboard-wasd
+          git rev-parse HEAD | tee verified-commit.txt
+      - name: Package checked source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile,ZIP_DEFLATED
+          import subprocess
+          with ZipFile('verified-parts-source.zip','w',ZIP_DEFLATED) as z:
+              for name in subprocess.check_output(['git','ls-files'],text=True).splitlines():
+                  p=Path(name)
+                  if p.is_file() and not name.startswith('.ci/') and p.suffix not in ['.ttf','.otf','.woff','.woff2']:
+                      z.write(p,'formula-alchemy/'+name)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parts-verified-results
+          path: |
+            verified-parts-source.zip
+            verified-commit.txt
+            parts-check.log
+            parts-e2e.log
+            test-results
+          retention-days: 7
