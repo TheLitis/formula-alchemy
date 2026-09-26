@@ -2,7 +2,7 @@ import type { GameState, RuntimeSnapshot } from '../core/types';
 export interface EditorSnapshot { state: GameState; runtime: RuntimeSnapshot }
 interface Entry { before: EditorSnapshot; after: EditorSnapshot; label: string; mergeKey?: string; at: number }
 export interface HistoryState { canUndo: boolean; canRedo: boolean; undoLabel: string; redoLabel: string; count: number }
-const signature = (s: EditorSnapshot) => JSON.stringify([s.state.nodes, s.runtime.bodies, s.runtime.anchors, s.runtime.motions]);
+const signature = (s: EditorSnapshot) => JSON.stringify([s.state.nodes, s.runtime.bodies, s.runtime.anchors, s.runtime.motions, s.runtime.labStates]);
 
 /** Bounded command history, not a recording of every physics frame. Nested edits form one entry. */
 export class EditHistory {
@@ -20,6 +20,7 @@ export class EditHistory {
         this.status = { canUndo: !!this.undoStack.length, canRedo: !!this.redoStack.length, undoLabel: this.undoStack.at(-1)?.label ?? '', redoLabel: this.redoStack.at(-1)?.label ?? '', count: this.undoStack.length };
         for (const listener of this.listeners) listener();
     }
+    stableSnapshot() { return structuredClone(this.pending?.before ?? this.capture()); }
     get active() { return this.pending !== null; }
     begin(label: string, mergeKey?: string) {
         if (this.applying) return;

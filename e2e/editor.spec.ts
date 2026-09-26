@@ -105,10 +105,10 @@ test('Escape, pointercancel and Ctrl-Z during a drag restore the original state 
     }
 });
 
-test('Ctrl-A, duplicate, fine/coarse nudge, and Delete/Backspace share the editor commands',async({page})=>{
+test('Ctrl-A, duplicate, fine/slower nudge, and Delete/Backspace share the editor commands',async({page})=>{
     const ids=await seed(page,[{symbol:'m',x:260,y:230},{symbol:'c',x:460,y:320}]);await page.locator('.board canvas').focus();await page.keyboard.press('Control+KeyA');expect(await selected(page)).toEqual(ids);
     await page.keyboard.press('Control+KeyD');expect((await snapshot(page)).state.nodes).toHaveLength(4);const copies=await selected(page);expect(copies).toHaveLength(2);
-    const x=(await snapshot(page)).state.nodes.at(-1)!.x;await page.keyboard.press('Alt+ArrowRight');await page.keyboard.press('Shift+ArrowRight');expect((await snapshot(page)).state.nodes.at(-1)!.x).toBeCloseTo(x+41,3);
+    const x=(await snapshot(page)).state.nodes.at(-1)!.x;await page.keyboard.press('Alt+ArrowRight');await page.keyboard.press('Shift+ArrowRight');expect((await snapshot(page)).state.nodes.at(-1)!.x).toBeCloseTo(x+3,3);
     await page.keyboard.press('Backspace');expect((await snapshot(page)).state.nodes.map(n=>n.id)).toEqual(ids);
 });
 

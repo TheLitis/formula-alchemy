@@ -1,6 +1,9 @@
 import type { CSSProperties } from 'react';
-export type IconName = 'book' | 'flask' | 'journal' | 'save' | 'pause' | 'play' | 'plus' | 'trash' | 'reset' | 'volume' | 'muted' | 'music' | 'close' | 'help' | 'arrow' | 'sliders' | 'grid' | 'search' | 'download' | 'upload' | 'check' | 'chevron' | 'cursor' | 'settings' | 'undo' | 'redo' | 'rotate' | 'copy' | 'select' | 'selectAll';
+export type IconName = 'book' | 'flask' | 'journal' | 'save' | 'pause' | 'play' | 'plus' | 'trash' | 'reset' | 'volume' | 'muted' | 'music' | 'close' | 'help' | 'arrow' | 'sliders' | 'grid' | 'search' | 'download' | 'upload' | 'check' | 'chevron' | 'cursor' | 'settings' | 'undo' | 'redo' | 'rotate' | 'copy' | 'select' | 'selectAll' | 'cut' | 'paste' | 'assembly';
 const paths: Record<IconName, string> = {
+    cut: 'M8 8L20 20M8 16L20 4M8 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+    paste: 'M9 4H5v17h14V4h-4M9 2h6v5H9V2M9 12h6M9 16h4',
+    assembly: 'M5 5h5v5H5V5M14 5h5v5h-5V5M5 14h5v5H5v-5M14 14h5v5h-5v-5M10 7h4M10 17h4M7 10v4M17 10v4',
     undo: 'M4 10h9a6 6 0 0 1 0 12M8 5l-5 5 5 5',
     redo: 'M20 10h-9a6 6 0 0 0 0 12M16 5l5 5-5 5',
     rotate: 'M19 8a8 8 0 1 0 1 8M19 3v5h-5',

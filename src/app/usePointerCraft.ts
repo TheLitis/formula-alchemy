@@ -7,18 +7,19 @@ import { tokenGlyph } from '../core/entities';
 import { WIDTH, HEIGHT } from '../core/types';
 import { clamp } from '../core/store';
 import { boxFromPoints, normalizeAngle } from '../editor/geometry';
+import { PartGesture } from '../editor/Parts';
 import { toWorld } from '../rendering/Renderer';
 import type { CanvasRenderer } from '../rendering/Renderer';
 import type { SceneTarget } from '../rendering/interaction';
 
 interface Drag {
     pointer: number; source: HTMLElement; symbol?: string; hit?: SceneTarget;
-    sx: number; sy: number; wx: number; wy: number; lastX: number; lastY: number;
+    sx: number; sy: number; wx: number; wy: number; lastX: number; lastY: number; lastInside: {x:number;y:number};
     moved: boolean; transforming: boolean; mode: 'object' | 'symbol' | 'marquee';
-    selectMode: 'replace' | 'add' | 'toggle'; beforeSelection: string[]; angle: number;
+    selectMode: 'replace' | 'add' | 'toggle'; beforeSelection: string[]; angle: number; part?: PartGesture;
 }
 
-/** One real-geometry controller. Pointer gestures are one undoable edit, never 60 edits/second. */
+/** Real geometry + native pointer capture; a part/assembly gesture is exactly one history edit. */
 export function usePointerCraft(board: RefObject<HTMLDivElement | null>, renderer: RefObject<CanvasRenderer | null>, onInspect: () => void) {
     const { store, runtime, audio, editor } = useSession(), inspect = useRef(onInspect);
     inspect.current = onInspect;
@@ -31,35 +32,39 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
         });
         const clean = () => {
             const d = drag; drag = null;
-            if (d) { try { if (d.source.hasPointerCapture(d.pointer)) d.source.releasePointerCapture(d.pointer); } catch { /* The source may have been deleted by a craft. */ } }
+            if (d) { try { if (d.source.hasPointerCapture(d.pointer)) d.source.releasePointerCapture(d.pointer); } catch { /* Source may have been deleted. */ } }
             ghost?.remove(); ghost = null; highlightReturn(false);
-            if (renderer.current) { renderer.current.craftTarget = null; renderer.current.marquee = null; renderer.current.canvas.style.cursor = 'grab'; }
+            if (renderer.current) { renderer.current.setFloating(null); renderer.current.craftTarget = null; renderer.current.marquee = null; renderer.current.canvas.style.cursor = 'grab'; }
         };
         const cancel = (): boolean => {
             if (!drag) return false;
-            if (drag.transforming) editor.cancelMove();
+            if (drag.part?.active) drag.part.cancel();
+            else if (drag.transforming) editor.cancelMove();
             else if (drag.mode === 'marquee') editor.select(drag.beforeSelection);
             clean(); return true;
         };
         const beginTransform = () => {
             if (!drag || drag.mode !== 'object' || !drag.hit || !editor.ids.includes(drag.hit.nodeId)) return false;
-            if (!drag.transforming) { editor.beginMove(); drag.transforming = true; }
+            if (!drag.transforming) { if(drag.part)drag.part.begin();else editor.beginMove(); drag.transforming = true; }
             return true;
         };
         editor.cancelPointer = cancel;
         editor.preparePointerTransform = beginTransform;
         editor.rotatePointer = (degrees: number) => {
-            if (!drag?.symbol) return false;
-            drag.angle = normalizeAngle(drag.angle + degrees);
-            if (ghost) ghost.style.rotate = `${drag.angle}deg`;
-            return true;
+            if (drag?.symbol) {
+                drag.angle = normalizeAngle(drag.angle + degrees);
+                if (ghost) ghost.style.rotate = `${drag.angle}deg`;
+                return true;
+            }
+            if(drag?.part){beginTransform();drag.part.rotate(degrees);return true;}
+            return false;
         };
         const down = (event: PointerEvent) => {
             if (drag || event.button !== 0 || !event.isPrimary || !renderer.current || !board.current || document.querySelector('[aria-modal="true"]')) return;
             const target = event.target as Element, palette = target.closest<HTMLElement>('[data-symbol]');
             const onCanvas = target === renderer.current.canvas;
             if (!palette && !onCanvas) return;
-            event.preventDefault();
+            event.preventDefault(); window.getSelection()?.removeAllRanges();
             renderer.current.canvas.focus({ preventScroll: true });
             const p = point(event.clientX, event.clientY);
             const hit = onCanvas ? renderer.current.hits.pick(p.x, p.y, undefined, false, 9 / renderer.current.viewport.scale) : null;
@@ -67,13 +72,14 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
             const mode = palette ? 'symbol' : !hit || event.shiftKey || editor.selectionMode ? 'marquee' : 'object';
             const selectMode = event.ctrlKey || event.metaKey ? 'toggle' : event.shiftKey ? 'add' : 'replace';
             drag = { pointer: event.pointerId, source, symbol: palette?.dataset.symbol, hit: hit ?? undefined,
-                sx: event.clientX, sy: event.clientY, wx: p.x, wy: p.y, lastX: p.x, lastY: p.y,
+                sx: event.clientX, sy: event.clientY, wx: p.x, wy: p.y, lastX: p.x, lastY: p.y, lastInside:p,
                 moved: false, transforming: false, mode, selectMode, beforeSelection: [...editor.ids], angle: 0 };
             if (mode === 'object' && hit) {
                 if (selectMode === 'toggle') editor.select([hit.nodeId], 'toggle');
                 else if (!editor.ids.includes(hit.nodeId)) editor.select([hit.nodeId]);
+                if(hit.partId && !event.altKey && !editor.assemblyMode && selectMode==='replace' && editor.ids.length===1)drag.part=new PartGesture(editor,hit,p);
             }
-            try { source.setPointerCapture(event.pointerId); } catch { /* Window listeners also handle synthetic pointer events. */ }
+            try { source.setPointerCapture(event.pointerId); } catch { /* Window listeners also handle touch emulation. */ }
             void audio.unlock().catch(() => {});
             if (mode !== 'marquee') audio.click();
         };
@@ -90,11 +96,16 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
             const draw = renderer.current;
             if (!draw || !board.current) return;
             if (!drag) {
-                if (event.target === draw.canvas) { const p = point(event.clientX, event.clientY); draw.canvas.style.cursor = event.shiftKey || editor.selectionMode ? 'crosshair' : draw.hits.pick(p.x, p.y) ? 'grab' : 'crosshair'; }
+                if (event.target === draw.canvas) {
+                    const p = point(event.clientX, event.clientY),hit=draw.hits.pick(p.x,p.y);
+                    draw.canvas.style.cursor = event.shiftKey || editor.selectionMode ? 'crosshair' : hit?.partClick?'pointer':hit?'grab':'crosshair';
+                    draw.canvas.title=hit?.partLabel??'Потяните объект. Alt — вся установка. Пустое место — рамка.';
+                }
                 return;
             }
             if (event.pointerId !== drag.pointer) return;
             const p = point(event.clientX, event.clientY);
+            const outside=p.x<0||p.y<0||p.x>WIDTH||p.y>HEIGHT;
             if (!drag.moved && Math.hypot(event.clientX - drag.sx, event.clientY - drag.sy) > 4) {
                 drag.moved = true;
                 if (drag.mode === 'object') beginTransform();
@@ -108,10 +119,15 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
             if (drag.mode === 'marquee') { draw.canvas.style.cursor = 'crosshair'; updateMarquee(p.x, p.y); return; }
             draw.canvas.style.cursor = 'grabbing';
             if (ghost) { ghost.style.left = `${event.clientX}px`; ghost.style.top = `${event.clientY}px`; }
-            // Incremental translation preserves a rotation made with R while the pointer is down.
-            if (drag.transforming) editor.move(p.x - drag.lastX, p.y - drag.lastY);
-            drag.lastX = p.x; drag.lastY = p.y;
+            if (drag.transforming) {
+                if(drag.part)drag.part.update(p,outside);else editor.movePointer(p.x-drag.lastX,p.y-drag.lastY);
+                if(outside){draw.setFloating({ids:editor.ids,bodyKey:drag.part?.target.bodyKey,
+                    offset:drag.part&&!drag.part.target.bodyKey?{x:p.x-drag.lastInside.x,y:p.y-drag.lastInside.y}:undefined});}
+                else draw.setFloating(null);
+            }
+            drag.lastX = p.x; drag.lastY = p.y;if(!outside)drag.lastInside=p;
             highlightReturn(!!drag.hit && over('[data-palette-return]', event.clientX, event.clientY));
+            if(drag.part){draw.craftTarget=null;return;}
             const target = draw.hits.pick(p.x, p.y, drag.hit?.nodeId, true, 6 / draw.viewport.scale);
             const a = drag.symbol ? [drag.symbol] : store.getState().nodes.find(n => n.id === drag!.hit?.nodeId)?.parts ?? [];
             const b = target && store.getState().nodes.find(n => n.id === target.nodeId);
@@ -121,6 +137,7 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
             const id = d.symbol && store.addToken(d.symbol, x, y);
             if (id && d.angle) { editor.select([id]); editor.rotate(d.angle); editor.select([]); }
         });
+        const finish=()=>{if(drag?.part)drag.part.end();else if(drag?.transforming)editor.endMove();};
         const up = (event: PointerEvent) => {
             if (!drag || event.pointerId !== drag.pointer || !renderer.current || !board.current) return;
             const d = drag, p = point(event.clientX, event.clientY), r = board.current.getBoundingClientRect();
@@ -132,17 +149,17 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
                 clean(); return;
             }
             if (!d.moved && !d.transforming) {
-                clean(); // Stop treating a palette click as a pending pointer-rotation before placement.
+                // A direct switch/level is an actuator: do not cover it with the mobile inspector.
+                if(d.part&&d.hit?.partClick){d.part.click();clean();return;}
+                clean();
                 if (d.symbol && SYMBOL_MAP[d.symbol]) addSymbol(d);
                 else if (d.hit && editor.ids.includes(d.hit.nodeId) && window.matchMedia('(max-width:1020px)').matches) inspect.current();
                 return;
             }
             const returning = over('[data-trash],[data-palette-return]', event.clientX, event.clientY);
-            if (returning && d.hit) {
-                store.removeMany(editor.ids);
-                if (d.transforming) editor.endMove(); clean(); return;
-            }
+            if (returning && d.hit) { store.removeMany(editor.ids); finish();clean();return; }
             if (!inside) { cancel(); return; }
+            if(d.part){finish();clean();return;}
             const hit = renderer.current.hits.pick(p.x, p.y, d.hit?.nodeId, true, 6 / renderer.current.viewport.scale);
             const a = d.symbol ? [d.symbol] : store.getState().nodes.find(n => n.id === d.hit?.nodeId)?.parts ?? [];
             const b = hit && store.getState().nodes.find(n => n.id === hit.nodeId);
@@ -150,8 +167,7 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
                 if (d.symbol) store.dropSymbol(d.symbol, b.id, { x: hit.x, y: hit.y });
                 else if (d.hit) store.combine(d.hit.nodeId, b.id, { x: hit.x, y: hit.y });
             } else if (d.symbol) { clean(); addSymbol(d, p.x, p.y); return; }
-            if (d.transforming) editor.endMove();
-            clean();
+            finish();clean();
         };
         const pointerCancel = (e: PointerEvent) => { if (drag?.pointer === e.pointerId) cancel(); };
         const hidden = () => { if (document.hidden) cancel(); };

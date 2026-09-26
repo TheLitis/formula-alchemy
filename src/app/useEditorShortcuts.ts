@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { CLIPBOARD_MIME } from '../editor/Clipboard';
 import { useSession } from './session';
 
 /** Editing a number or typing in a dialog keeps native browser text shortcuts intact. */
@@ -15,7 +16,7 @@ export function useEditorShortcuts(actions: { onSave: () => void; onHelp: () => 
             // code, not key: R/Z/A/D/S also work with the Russian keyboard layout.
             if (command && !e.altKey) {
                 const supported = ['KeyZ', 'KeyY', 'KeyA', 'KeyD', 'KeyS'].includes(e.code);
-                if (!supported) return; // in particular, do not intercept browser Ctrl+R.
+                if (!supported) return; // Browser dispatches native clipboard events for Ctrl+C/X/V below; keep Ctrl+R native.
                 e.preventDefault();
                 if (e.repeat) return;
                 if (e.code === 'KeyZ') { if (e.shiftKey) editor.redo(); else editor.undo(); }
@@ -26,8 +27,8 @@ export function useEditorShortcuts(actions: { onSave: () => void; onHelp: () => 
                 return;
             }
             if (command) return;
-            if (e.code === 'KeyR' && !e.altKey) {
-                e.preventDefault(); editor.rotate(e.shiftKey ? -15 : 15, `rotate:${editor.ids.join(',')}`); return;
+            if (['KeyR', 'KeyQ'].includes(e.code) && !e.altKey) {
+                e.preventDefault(); editor.rotate(e.code === 'KeyQ' || e.shiftKey ? -15 : 15, `rotate:${editor.ids.join(',')}`); return;
             }
             if (e.code === 'Escape' || e.key === 'Escape') {
                 e.preventDefault(); if (!editor.cancelPointer?.()) { editor.select([]); callbacks.current.onEscape(); } return;
@@ -35,10 +36,10 @@ export function useEditorShortcuts(actions: { onSave: () => void; onHelp: () => 
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 e.preventDefault(); if (!e.repeat) editor.deleteSelection(); return;
             }
-            const direction = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
+            const direction = ({ ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] } as Record<string, number[]>)[e.code];
             if (direction && editor.ids.length) {
                 e.preventDefault();
-                const step = e.altKey ? 1 : e.shiftKey ? 40 : 12;
+                const step = e.altKey ? 1 : e.shiftKey ? 2 : 12;
                 editor.move(direction[0] * step, direction[1] * step, `nudge:${editor.ids.join(',')}`); return;
             }
             if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
@@ -54,7 +55,21 @@ export function useEditorShortcuts(actions: { onSave: () => void; onHelp: () => 
                 e.preventDefault(); editor.cancelPointer?.(); callbacks.current.onHelp();
             }
         };
+        const clipboard = (event: ClipboardEvent) => {
+            if (event.defaultPrevented || isEditingText(event.target) || document.querySelector('[aria-modal="true"]')) return;
+            // Text selected in explanations still copies normally.
+            if (window.getSelection()?.toString()) return;
+            if (event.type === 'paste') {
+                const text = event.clipboardData?.getData(CLIPBOARD_MIME) || event.clipboardData?.getData('text/plain');
+                if (text && editor.paste(text)) event.preventDefault();
+            } else {
+                if (!editor.ids.length || !event.clipboardData) return;
+                const text = event.type === 'cut' ? editor.cut() : editor.copy();
+                if (text) { event.clipboardData.setData('text/plain', text); event.clipboardData.setData(CLIPBOARD_MIME, text); event.preventDefault(); }
+            }
+        };
         document.addEventListener('keydown', key);
-        return () => document.removeEventListener('keydown', key);
+        for (const type of ['copy', 'cut', 'paste']) document.addEventListener(type, clipboard as EventListener);
+        return () => { document.removeEventListener('keydown', key); for (const type of ['copy', 'cut', 'paste']) document.removeEventListener(type, clipboard as EventListener); };
     }, [store, editor]);
 }

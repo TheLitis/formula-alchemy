@@ -3,7 +3,7 @@ import { collectSpeedReadings, speedText } from '../physics/speedReadings';
 
 export function SpeedReadout({ nodeId }: { nodeId: string }) {
     const state = useGame(), runtime = useRuntimeTick();
-    const readings = collectSpeedReadings(state, runtime.world, runtime.ages).filter(r => r.nodeId === nodeId);
+    const readings = collectSpeedReadings(state, runtime.world, runtime.ages, runtime.labStates).filter(r => r.nodeId === nodeId);
     if (!readings.length) return null;
     return <section className="speed-readout" aria-label="Текущая скорость" data-testid="speed-readout">
         <h3>{readings[0].prefix === 'волна' ? 'Скорость распространения' : 'Текущая скорость'}</h3>

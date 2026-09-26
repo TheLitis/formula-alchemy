@@ -1,4 +1,4 @@
-import { fluidCenter } from '../../physics/labModels';
+import { floatingMotion, satelliteMotion } from '../../physics/interactiveModels';
 import { calculate, formatValue, G } from '../../core/evaluate';
 import { HEIGHT, PX_PER_M } from '../../core/types';
 import { blackHoleGeometry } from '../../physics/geometry';
@@ -62,7 +62,7 @@ const pressure: EffectRenderer = ({ c, node, age }) => {
   text(c, 'Меньше площадь → больше давление', 500, 625, 19, MUTED, 'center');
 };
 
-const fluid: EffectRenderer = ({ c, node, age }) => {
+const fluid: EffectRenderer = ({ c, node, age, labState }) => {
   const p = node.params, rho = node.recipeId === 'density' ? 1000 : p.rho, m = p.m, V = p.V * 1e-3, g = p.g ?? 9.8, density = m / V, side = Math.cbrt(p.V / 3) * 84;
   rect(c, 270, 270, 460, 280, '#e5e5e5', null);
   line(c, 270, 250, 270, 550, INK, 2);
@@ -70,7 +70,7 @@ const fluid: EffectRenderer = ({ c, node, age }) => {
   line(c, 730, 550, 730, 250, INK, 2);
   for (let x = 270; x <= 730; x += 10) line(c, x, 270 + Math.sin(x * .05 + age * 1.8) * 2, x + 10, 270 + Math.sin((x + 10) * .05 + age * 1.8) * 2, '#c2c2c2');
 
-  const y = fluidCenter(m, p.V, rho, g, age);
+  const y = floatingMotion(node, age, labState).y;
   rect(c, 500 - side / 2, y - side / 2, side, side, PAPER, INK);
   text(c, 'm', 500, y + 8, 29, INK, 'center', true);
 
@@ -86,8 +86,8 @@ const fluid: EffectRenderer = ({ c, node, age }) => {
   text(c, `FА ≈ ${formatValue(fa)} Н  ·  mg = ${formatValue(m * g)} Н  ·  ${regime}`, 500, 633, 17, MUTED, 'center');
 };
 
-const gravitation: EffectRenderer = ({ c, node, age }) => {
-  const p = node.params, r = p.r * 1e6, omega = Math.sqrt(G * p.M * 1e24 / r ** 3), a = omega * age * 200, radius = p.r * 17;
+const gravitation: EffectRenderer = ({ c, node, age, labState }) => {
+  const p = node.params, r = p.r * 1e6, omega = Math.sqrt(G * p.M * 1e24 / r ** 3), a = satelliteMotion(node, age, labState).phase, radius = p.r * 17;
   circle(c, 500, 365, radius, null, '#b7b7b7');
   circle(c, 500, 365, 31, '#d7d7d7', INK, 1.5);
   text(c, 'M', 500, 375, 30, INK, 'center', true);

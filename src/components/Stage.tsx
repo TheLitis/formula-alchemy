@@ -35,7 +35,7 @@ export function Stage({ onReset, onHelp, onInspect }: { onReset: () => void; onH
         request = requestAnimationFrame(frame);
         // Opt-in, local test harness. Never used to substitute any engine or UI behavior.
         if (new URLSearchParams(location.search).has('qa') || (window as unknown as Record<string, unknown>).__ALCHEMY_QA__ === true) (window as unknown as Record<string, unknown>).__alchemyTest = { store, runtime, renderer: draw, audio, editor };
-        return () => { cancelAnimationFrame(request); observer.disconnect(); renderer.current = null; delete (window as unknown as Record<string, unknown>).__alchemyTest; };
+        return () => { cancelAnimationFrame(request); observer.disconnect(); draw.dispose(); renderer.current = null; delete (window as unknown as Record<string, unknown>).__alchemyTest; };
     }, [store, runtime, audio, editor]);
     return <main className="workspace" aria-label="Лаборатория Formula Alchemy">
         <div className="stage-top"><div className="stage-mode"><Icon name="flask" size={17}/><span>{state.lab === 'sandbox' ? 'Свободная песочница' : recipe?.title}</span>{state.lab !== 'sandbox' && <button className="text-button" onClick={() => store.patch({ lab: 'sandbox', activeId: null })}>На холст <Icon name="arrow" size={14}/></button>}</div><div className="stage-view-tools">
@@ -43,7 +43,7 @@ export function Stage({ onReset, onHelp, onInspect }: { onReset: () => void; onH
             <button className="icon-button" aria-label="Справка" onClick={onHelp}><Icon name="help" size={17}/></button></div></div>
         <EditorToolbar/>
         <div className="board" ref={board}>
-            <canvas ref={canvas} tabIndex={0} aria-label="Физическая песочница. Нажмите на объект для формулы справа. Перетаскивайте сам объект. Рамка выделяет группу. Ctrl-клик выбирает отдельные объекты. R — поворот, Ctrl-Z — отмена, стрелки — перенос, пробел — пауза, Delete — удаление."/>
+            <canvas ref={canvas} tabIndex={0} aria-label="Физическая песочница. Нажмите на объект для формулы справа. Тяните подвижную деталь. Alt — перенос всей установки. Рамка выделяет группу. Ctrl-клик выбирает отдельные объекты. R/Q — поворот, Ctrl-Z — отмена, Ctrl-C/X/V — буфер, WASD/стрелки — перенос, Shift — медленно, пробел — пауза, Delete — удаление."/>
             {renderError && <div className="render-error" role="alert"><h2>Симуляция остановлена</h2><p>{renderError}</p><p>Сохранения и экспорт остаются доступны.</p></div>}
         </div>
         <div className="simulation-toolbar"><div className="playback"><button className="play-button" aria-label={state.paused ? 'Продолжить симуляцию' : 'Приостановить симуляцию'} onClick={() => store.patch({ paused: !state.paused })}><Icon name={state.paused ? 'play' : 'pause'} size={17}/></button><label className="sr-only" htmlFor="simulation-speed">Скорость симуляции</label><select id="simulation-speed" value={state.speed} onChange={e => store.patch({ speed: Number(e.target.value) })}><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></div>

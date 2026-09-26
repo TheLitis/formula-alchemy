@@ -1,3 +1,4 @@
+import { inductionMotion } from '../../physics/interactiveModels';
 import { calculate, formatValue, radians } from '../../core/evaluate';
 import { arrow, circle, FAINT, INK, line, MUTED, PAPER, polyline, rect, text } from '../primitives';
 import type { EffectRenderer } from '../primitives';
@@ -98,8 +99,8 @@ const ampere: EffectRenderer = ({ c, node, age }) => {
     text(c, `α = ${p.alpha}°   ·   F = ${formatValue(F)} Н`, 500, 590, 20, MUTED, 'center');
     text(c, 'B', 843, 188, 25, INK, 'left', true);
 };
-const induction: EffectRenderer = ({ c, node, age }) => {
-    const p = node.params, progress = Math.min(1, age / p.dt), emf = age < p.dt ? -p.Phi / p.dt : 0;
+const induction: EffectRenderer = ({ c, node, age, labState }) => {
+    const p = node.params, motion = inductionMotion(node, age, labState), progress = (motion.x - 180) / 320, emf = motion.emf;
     for (let i = 0; i < 7; i++) {
         c.save();
         c.beginPath();
@@ -113,15 +114,15 @@ const induction: EffectRenderer = ({ c, node, age }) => {
             arrow(c, 265, y, 555 + progress * 50, y, FAINT, 2);
         else
             arrow(c, 555 + progress * 50, y, 265, y, FAINT, 2);
-    rect(c, 228, 318, 56, 44, '#bfbfbf', INK);
-    text(c, 'N', 245, 346, 15, INK);
-    text(c, 'S', 274, 346, 15, INK, 'right');
+    rect(c, motion.x - 28, 318, 56, 44, '#bfbfbf', INK);
+    text(c, 'N', motion.x - 11, 346, 15, INK);
+    text(c, 'S', motion.x + 18, 346, 15, INK, 'right');
     polyline(c, [{ x: 370, y: 442 }, { x: 370, y: 520 }, { x: 760, y: 520 }, { x: 760, y: 420 }], INK, 1.2);
     circle(c, 760, 340, 75, PAPER, INK);
     line(c, 760, 392, 760 + Math.sin(emf * .55) * 54, 340 - Math.cos(emf * .55) * 38, INK, 2);
     text(c, `${formatValue(emf)} В`, 760, 452, 27, INK, 'center', true);
     text(c, '0', 760, 286, 13, MUTED, 'center');
-    text(c, `ΔΦ(t) = ${formatValue(p.Phi * progress)} Вб`, 455, 590, 23, INK, 'center', true);
-    text(c, age < p.dt ? 'Поток меняется — возникает ЭДС' : 'Поток постоянен — ЭДС равна нулю', 500, 631, 16, MUTED, 'center');
+    text(c, `ΔΦ(t) = ${formatValue(motion.flux)} Вб`, 455, 590, 23, INK, 'center', true);
+    text(c, Math.abs(emf) > 1e-8 ? 'Поток меняется — возникает ЭДС' : 'Поток постоянен — ЭДС равна нулю', 500, 631, 16, MUTED, 'center');
 };
 export const magneticEffects: Record<string, EffectRenderer> = { coulomb, electricField, lorentz, ampere, induction };

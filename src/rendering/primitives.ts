@@ -2,6 +2,7 @@ import { recordCircle, recordRect, recordLine } from './interaction';
 import type { FormulaNode, GameState } from '../core/types';
 import type { PhysicsWorld } from '../physics/World';
 export interface DrawContext {
+    labState?: import('../core/types').LabState;
     c: CanvasRenderingContext2D;
     node: FormulaNode;
     age: number;

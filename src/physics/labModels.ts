@@ -1,8 +1,8 @@
 /** Stable display models; calculated SI values remain in core/evaluate.ts. */
-export function fluidCenter(mass: number, liters: number, density: number, g: number, age: number): number {
-    const side = Math.cbrt(liters / 3) * 84, bodyDensity = mass / (liters * .001), start = 365;
-    if (g <= 0 || Math.abs(bodyDensity - density) <= Math.max(1, density) * 1e-10) return start;
-    const target = bodyDensity < density ? 270 + side * (bodyDensity / density - .5) : 550 - side / 2;
+export function fluidCenter(mass: number, liters: number, density: number, g: number, age: number, start = 365): number {
+    const side = Math.cbrt(liters / 3) * 84, bodyDensity = mass / (liters * .001);
+    if (g <= 0 || (Math.abs(bodyDensity - density) <= Math.max(1, density) * 1e-10 && start >= 270 + side / 2)) return start;
+    const target = bodyDensity <= density ? 270 + side * (bodyDensity / density - .5) : 550 - side / 2;
     const t = Math.max(0, age) * Math.sqrt(g / 9.8);
     // Critically damped interpolation to the buoyancy equilibrium, not CFD.
     return start + (target - start) * (1 - (1 + t * 1.4) * Math.exp(-t * 1.4));

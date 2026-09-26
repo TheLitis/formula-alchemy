@@ -77,8 +77,9 @@ test('drag the letters themselves to craft; the canvas keeps no equation',async(
     expect(await page.evaluate(()=>window.__alchemyTest.runtime.world.bodies.size)).toBe(1);
 });
 
-test('every recipe is draggable via real drawn geometry; position changes before release',async({page})=>{
+test('Alt drags each entire recipe via real drawn geometry; position changes before release',async({page})=>{
     test.setTimeout(120000);
+    await page.keyboard.down('Alt');
     for(const recipe of RECIPES) {
         const id=await resetRecipe(page,recipe.id),hit=await actualHit(page,id),start=await position(page,id,hit.bodyKey);
         const dy=hit.y>560?-25:25;
@@ -90,6 +91,7 @@ test('every recipe is draggable via real drawn geometry; position changes before
         await page.mouse.up();
         const released=await position(page,id,hit.bodyKey);expect(released.x,recipe.id).toBeCloseTo(held.x,1);
     }
+    await page.keyboard.up('Alt');
 });
 
 test('click the orbital visualization for its formula, not an invisible point above it',async({page})=>{
@@ -110,6 +112,7 @@ test('black-hole hold uses the original grab offset, without jumping to the poin
 
 test('touch pointer drag follows the actual object too',async({page})=>{
     const id=await resetRecipe(page,'gravitation'),hit=await actualHit(page,id),start=await position(page,id),from=await screen(page,hit.x,hit.y),to=await screen(page,hit.x+55,hit.y+15);
+    await page.getByRole('button',{name:'Перемещать установку целиком',exact:true}).click();
     const c=page.locator('.board canvas');
     await c.dispatchEvent('pointerdown',{pointerId:8,pointerType:'touch',isPrimary:true,button:0,buttons:1,clientX:from.x,clientY:from.y});
     for(let i=1;i<=6;i++)await c.dispatchEvent('pointermove',{pointerId:8,pointerType:'touch',isPrimary:true,button:0,buttons:1,clientX:from.x+(to.x-from.x)*i/6,clientY:from.y+(to.y-from.y)*i/6});
