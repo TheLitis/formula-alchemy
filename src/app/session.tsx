@@ -24,7 +24,7 @@ export function createSession() {
     runtime.world.onCollision = (strength, x) => audio.impact(strength, x);
     runtime.onCaptureFeedback = x => audio.absorb(x);
     const stopAudioSync = store.subscribe(() => { audio.sound = store.getState().sound; audio.setMusic(store.getState().music); });
-    return { store, runtime, audio, editor, storageError, snapshot: (name = 'Автосохранение') => makeSave(store.getState(), runtime.snapshot(), name), dispose: () => { stopAudioSync(); store.onFeedback = () => {}; editor.dispose(); runtime.dispose(); audio.dispose(); } };
+    return { store, runtime, audio, editor, storageError, snapshot: (name = 'Автосохранение') => { const s = editor.history.stableSnapshot(); return makeSave(s.state, s.runtime, name); }, dispose: () => { stopAudioSync(); store.onFeedback = () => {}; editor.dispose(); runtime.dispose(); audio.dispose(); } };
 }
 export type Session = ReturnType<typeof createSession>;
 export const SessionContext = createContext<Session | null>(null);

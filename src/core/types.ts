@@ -78,6 +78,13 @@ export interface BodySnapshot {
     radius: number;
     label: string;
 }
+/** Initial conditions of a manipulated analytic lab, in its own physical units. */
+export interface LabState {
+    kind: 'oscillator' | 'fluid' | 'orbit' | 'induction';
+    position: number;
+    velocity: number;
+    epoch: number;
+}
 export interface RuntimeSnapshot {
     time: number;
     ages: Record<string, number>;
@@ -85,6 +92,7 @@ export interface RuntimeSnapshot {
     absorbed: string[];
     anchors?: Record<string, { x: number; y: number }>;
     motions?: Record<string, { vx: number; vy: number }>;
+    labStates?: Record<string, LabState>;
 }
 export interface SavedExperiment {
     version: 1;

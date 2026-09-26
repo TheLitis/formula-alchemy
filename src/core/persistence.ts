@@ -3,7 +3,7 @@ import { RECIPE_MAP, RECIPES } from './catalog';
 import { multisetContains } from './crafting';
 import { SYMBOL_MAP } from './symbols';
 import { MAX_BODIES, MAX_NODES } from './types';
-import type { BodySnapshot, Discovery, FormulaNode, GameState, RuntimeSnapshot, SavedExperiment } from './types';
+import type { BodySnapshot, Discovery, FormulaNode, GameState, RuntimeSnapshot, SavedExperiment, LabState } from './types';
 
 const AUTO = 'formula-alchemy:autosave:v1', SLOTS = 'formula-alchemy:slots:v1';
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -110,6 +110,21 @@ export function validateSave(input: unknown): SavedExperiment {
       }
     }
   }
+  const labStates: Record<string, LabState> = {};
+  if (r.labStates !== undefined) {
+    if (!isObject(r.labStates) || Object.keys(r.labStates).length > MAX_NODES) return fail();
+    for (const [id, value] of Object.entries(r.labStates)) {
+      const n = nodes.find(n => n.id === id);
+      if (!n || !isObject(value) || !num(value.epoch, 0, 1e8) || !num(value.position, -1e5, 1e5) || !num(value.velocity, -1e5, 1e5)) return fail();
+      const expected = ['pendulum','springPeriod'].includes(n.recipeId ?? '') ? 'oscillator' : ['density','buoyancy'].includes(n.recipeId ?? '') ? 'fluid' : n.recipeId === 'gravitation' ? 'orbit' : n.recipeId === 'induction' ? 'induction' : null;
+      if (value.kind !== expected || expected === null) return fail();
+      if (n.recipeId === 'pendulum' && (Math.abs(value.position) > Math.PI/6 || Math.abs(value.velocity) > 10)) return fail();
+      if (n.recipeId === 'springPeriod' && (Math.abs(value.position) > 4 || Math.abs(value.velocity) > 100)) return fail();
+      if (expected === 'fluid' && !num(value.position, 100, 550)) return fail();
+      if (expected === 'induction' && !num(value.position, 160, 520)) return fail();
+      labStates[id] = { kind: expected, position: value.position, velocity: value.velocity, epoch: value.epoch };
+    }
+  }
   const state: GameState = {
     nodes,
     discoveries,
@@ -127,7 +142,7 @@ export function validateSave(input: unknown): SavedExperiment {
     sound: bool(s.sound),
   };
 
-  return { version: 1, id: input.id, name: input.name, savedAt: input.savedAt, state, runtime: { time: r.time, ages, bodies, absorbed: r.absorbed as string[], ...(r.anchors !== undefined ? { anchors } : {}), ...(r.motions !== undefined ? { motions } : {}) } };
+  return { version: 1, id: input.id, name: input.name, savedAt: input.savedAt, state, runtime: { time: r.time, ages, bodies, absorbed: r.absorbed as string[], ...(r.anchors !== undefined ? { anchors } : {}), ...(r.motions !== undefined ? { motions } : {}), ...(r.labStates !== undefined ? { labStates } : {}) } };
 }
 
 export function parseSave(text: string): SavedExperiment {

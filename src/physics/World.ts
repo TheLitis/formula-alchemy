@@ -21,8 +21,17 @@ export class PhysicsWorld {
     private previous = new Map<string, FormulaNode>();
     private nodes: FormulaNode[] = [];
     private anchors = new Map<string, { x: number; y: number }>();
-    private held = new Map<string, { mass: number; velocity: Point; av: number }>();
+    private held = new Map<string, { mass: number; velocity: Point; mask: number }>();
     private trailTick = 0;
+    isHeld(key: string) { return this.held.has(key); }
+    anchorFor(id: string) { return this.anchors.get(id); }
+    /** All current simulated bodies are point masses, not rotational rigid bodies.
+     * Infinity inertia alone does not remove a pre-existing angular velocity. */
+    private lockSpin(body: Matter.Body) {
+        if (!body.isStatic) Matter.Body.setInertia(body, Infinity);
+        Matter.Body.setAngularVelocity(body, 0);
+        body.torque = 0;
+    }
     
     onCollision: (strength: number, x: number) => void = () => {};
     onAbsorb: (item: PhysicalBody, hole: FormulaNode) => void = () => {};
@@ -223,10 +232,14 @@ export class PhysicsWorld {
             }
             this.accelerate(b, ax, ay);
         }
+        // Preserve authored orientation but do not import/accumulate spurious spin.
+        for (const item of this.bodies.values()) this.lockSpin(item.body);
         Matter.Engine.update(this.engine, dt * 1000);
         this.trailTick++;
         for (const item of [...this.bodies.values()]) {
             const b = item.body, prev = before.get(item.key);
+            this.lockSpin(b);
+            if (this.held.has(item.key)) continue; // Dragged bodies may leave the world to reach the palette.
             if (prev && !this.held.has(item.key)) {
                 const h = holes.find(n => { const g = blackHoleGeometry(n); return segmentDistance(prev.x, prev.y, b.position.x, b.position.y, g.x, g.y) < g.radius + item.radius * .22; });
                 if (h) { this.capture(item, h); continue; }
@@ -256,24 +269,25 @@ export class PhysicsWorld {
         let found = false;
         for (const key of keys) {
             const item = this.bodies.get(key); if (!item || this.held.has(key)) continue;
-            this.held.set(key, { mass: item.body.mass, velocity: Matter.Body.getVelocity(item.body), av: item.body.angularVelocity });
-            Matter.Body.setStatic(item.body, true); found = true;
+            this.held.set(key, { mass: item.body.mass, velocity: Matter.Body.getVelocity(item.body), mask: item.body.collisionFilter.mask ?? 0xFFFFFFFF });
+            this.lockSpin(item.body); Matter.Body.setStatic(item.body, true); item.body.collisionFilter.mask = 0; found = true;
         }
         return found;
     }
     holdOwners(ids: ReadonlySet<string>) { this.holdKeys([...this.bodies.values()].filter(i => ids.has(i.owner)).map(i => i.key)); }
-    drag(x: number, y: number) {
+    drag(x: number, y: number, bounded = true) {
         const key = this.held.keys().next().value, item = key ? this.bodies.get(key) : undefined;
         if (!item) return;
         const r = item.radius;
-        Matter.Body.setPosition(item.body, { x: clamp(x, r + 1, WIDTH - r - 1), y: clamp(y, r + 1, FLOOR - r) }); item.trail = [];
+        Matter.Body.setPosition(item.body, bounded ? { x: clamp(x, r + 1, WIDTH - r - 1), y: clamp(y, r + 1, FLOOR - r) } : { x, y }); item.trail = [];
     }
     release(resumeVelocity = false) {
         for (const [key, held] of this.held) {
             const item = this.bodies.get(key); if (!item) continue;
             Matter.Body.setStatic(item.body, false); Matter.Body.setMass(item.body, held.mass); Matter.Body.setInertia(item.body, Infinity);
             Matter.Body.setVelocity(item.body, resumeVelocity ? held.velocity : { x: 0, y: 0 });
-            Matter.Body.setAngularVelocity(item.body, resumeVelocity ? held.av : 0);
+            item.body.collisionFilter.mask = held.mask;
+            this.lockSpin(item.body);
         }
         this.held.clear();
     }
@@ -282,7 +296,7 @@ export class PhysicsWorld {
         for (const item of this.bodies.values()) if (ids.has(item.owner)) {
             const b = item.body, p = rotatePoint(b.position, pivot, angle);
             Matter.Body.setPosition(b, { x: p.x + dx, y: p.y + dy });
-            Matter.Body.setAngle(b, b.angle + angle);
+            Matter.Body.setAngle(b, b.angle + angle); this.lockSpin(b);
             const held = this.held.get(item.key);
             if (held) held.velocity = rotateVector(held.velocity, angle);
             else Matter.Body.setVelocity(b, rotateVector(Matter.Body.getVelocity(b), angle));
@@ -295,7 +309,7 @@ export class PhysicsWorld {
     snapshotAnchors() { return structuredClone(Object.fromEntries(this.anchors)); }
     restoreAnchors(anchors?: Record<string, Point>) { if (anchors) this.anchors = new Map(Object.entries(anchors)); }
     snapshot(): BodySnapshot[] {
-        return [...this.bodies.values()].map(({ body: b, key, owner, label, radius }) => ({ key, owner, x: b.position.x, y: b.position.y, vx: this.held.get(key)?.velocity.x ?? b.velocity.x, vy: this.held.get(key)?.velocity.y ?? b.velocity.y, angle: b.angle, av: this.held.get(key)?.av ?? b.angularVelocity, mass: this.held.get(key)?.mass ?? b.mass, radius, label }));
+        return [...this.bodies.values()].map(({ body: b, key, owner, label, radius }) => ({ key, owner, x: b.position.x, y: b.position.y, vx: this.held.get(key)?.velocity.x ?? b.velocity.x, vy: this.held.get(key)?.velocity.y ?? b.velocity.y, angle: b.angle, av: 0, mass: this.held.get(key)?.mass ?? b.mass, radius, label }));
     }
     restore(bodies: BodySnapshot[], absorbed: string[]) {
         this.release();
@@ -303,7 +317,7 @@ export class PhysicsWorld {
         this.absorbed = new Set(absorbed);
         for (const s of bodies) {
             const item = this.spawn(s.x, s.y, s.mass, s.owner, s.label, s.radius, s.key);
-            if (item) { Matter.Body.setVelocity(item.body, { x: s.vx, y: s.vy }); Matter.Body.setAngle(item.body, s.angle); Matter.Body.setAngularVelocity(item.body, s.av); }
+            if (item) { Matter.Body.setVelocity(item.body, { x: s.vx, y: s.vy }); Matter.Body.setAngle(item.body, s.angle); this.lockSpin(item.body); }
         }
     }
     clearFreeBodies() { for (const i of [...this.bodies.values()]) if (i.owner === 'free') this.remove(i.key); }

@@ -1,10 +1,11 @@
+import { oscillatorMotion } from '../../physics/interactiveModels';
 import { calculate, formatValue } from '../../core/evaluate';
 import { arrow, circle, FAINT, INK, line, MUTED, PAPER, polyline, rect, spring, text } from '../primitives';
 import type { EffectRenderer } from '../primitives';
-const oscillation: EffectRenderer = ({ c, node, age }) => {
-    const p = node.params, id = node.recipeId!, period = calculate(id, p).value, omega = 2 * Math.PI / period, x = Math.cos(omega * age);
+const oscillation: EffectRenderer = ({ c, node, age, labState }) => {
+    const p = node.params, id = node.recipeId!, period = calculate(id, p).value, motion = oscillatorMotion(node, age, labState), extent = Math.max(.001, id === 'pendulum' ? .5236 : 4), x = motion.position / extent;
     if (id === 'pendulum') {
-        const length = p.L * 52, a = .20944 * x, bx = 490 + Math.sin(a) * length, by = 180 + Math.cos(a) * length;
+        const length = p.L * 52, bx = motion.x, by = motion.y;
         line(c, 435, 180, 545, 180, INK, 3);
         line(c, 490, 180, 490, 460, FAINT, 1, [4, 6]);
         line(c, 490, 180, bx, by, INK, 1.5);
@@ -13,7 +14,7 @@ const oscillation: EffectRenderer = ({ c, node, age }) => {
         text(c, `L = ${p.L} м`, 560, 210 + length / 2, 18, INK, 'left', true);
     }
     else {
-        const bx = 500 + x * p.amplitude * 32;
+        const bx = motion.x;
         line(c, 235, 225, 235, 405, INK, 3);
         spring(c, 235, 310, bx - 22, 310, 18);
         circle(c, bx, 310, 23, PAPER, INK, 1.5);
@@ -24,7 +25,7 @@ const oscillation: EffectRenderer = ({ c, node, age }) => {
     }
     arrow(c, 160, 550, 860, 550, FAINT);
     arrow(c, 160, 602, 160, 490, FAINT);
-    const points = Array.from({ length: 401 }, (_, i) => ({ x: 160 + i * 1.7, y: 550 - Math.cos(omega * (age - i * .014)) * 43 }));
+    const points = Array.from({ length: 401 }, (_, i) => ({ x: 160 + i * 1.7, y: 550 - oscillatorMotion(node, age - i * .014, labState).position / extent * 43 }));
     polyline(c, points, INK, 1.5);
     circle(c, 160, 550 - x * 43, 4, INK, null);
     text(c, 't', 872, 556, 18, MUTED, 'left', true);

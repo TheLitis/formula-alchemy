@@ -1,31 +1,27 @@
 import { rotateVector } from '../editor/geometry';
 import type { Box } from '../editor/geometry';
 export interface Point { x: number; y: number; }
-export interface SceneTarget extends Point { nodeId: string; kind: 'body' | 'node' | 'apparatus'; bodyKey?: string; }
-type Shape = { type: 'circle'; x: number; y: number; r: number; filled: boolean } | { type: 'rect'; x: number; y: number; w: number; h: number; angle?: number } | { type: 'line'; x: number; y: number; x2: number; y2: number };
+export interface SceneTarget extends Point { nodeId: string; kind: 'body' | 'node' | 'apparatus'; bodyKey?: string; partId?: string; partLabel?: string; partValue?: number; partClick?: boolean; }
+export type Shape = { type: 'circle'; x: number; y: number; r: number; filled: boolean } | { type: 'rect'; x: number; y: number; w: number; h: number; angle?: number } | { type: 'line'; x: number; y: number; x2: number; y2: number };
 interface Region { target: SceneTarget; shape: Shape; core: boolean; }
 export class HitRegistry {
     regions: Region[] = [];
     clear() { this.regions = []; }
     add(target: SceneTarget, shape: Shape, core = false) { if (this.regions.length < 18000) this.regions.push({ target, shape, core }); }
     pick(x: number, y: number, exclude?: string, core = false, margin = 8): SceneTarget | null {
-        for (let i = this.regions.length - 1; i >= 0; i--) {
-            const r = this.regions[i], s = r.shape;
-            if (r.target.nodeId === exclude || core && !r.core) continue;
-            if (s.type === 'circle') { const d = Math.hypot(x - s.x, y - s.y); if (s.filled ? d <= s.r + margin : Math.abs(d - s.r) <= margin) return r.target; }
-            if (s.type === 'rect') {
-                const cx = s.x + s.w / 2, cy = s.y + s.h / 2, a = s.angle ?? 0;
-                const dx = x - cx, dy = y - cy, u = dx * Math.cos(a) + dy * Math.sin(a), v = -dx * Math.sin(a) + dy * Math.cos(a);
-                if (Math.abs(u) <= s.w / 2 + margin && Math.abs(v) <= s.h / 2 + margin) return r.target;
-            }
-            if (s.type === 'line') {
-                const dx = s.x2 - s.x, dy = s.y2 - s.y, l2 = dx * dx + dy * dy;
-                const t = l2 ? Math.max(0, Math.min(1, ((x - s.x) * dx + (y - s.y) * dy) / l2)) : 0;
-                if (Math.hypot(x - s.x - t * dx, y - s.y - t * dy) <= margin) return r.target;
-            }
+        const candidates = this.regions.filter(r => r.target.nodeId !== exclude && (!core || r.core));
+        let top: SceneTarget | null = null;
+        for(let i=candidates.length-1;i>=0;i--) if(shapeDistance(candidates[i].shape,x,y)<=margin){top=candidates[i].target;break;}
+        if(!top)return null;
+        // Expanded touch hit areas of adjacent slits/energy levels can overlap.
+        // Among parts of the same topmost object, prefer the nearest actual geometry.
+        let distance=Infinity,part:SceneTarget|null=null;
+        for(let i=candidates.length-1;i>=0;i--){const r=candidates[i];if(r.target.nodeId!==top.nodeId||!r.target.partId)continue;
+            const d=shapeDistance(r.shape,x,y);if(d<=margin&&d<distance){part=r.target;distance=d;}
         }
-        return null;
+        return part??top;
     }
+
     inBox(box: Box): string[] { return [...new Set(this.regions.filter(r => intersects(box, r.shape)).map(r => r.target.nodeId))]; }
     boundsFor(ids: ReadonlySet<string>): Box | null {
         const shapes = this.regions.filter(r => ids.has(r.target.nodeId)).map(r => bounds(r.shape));
@@ -33,7 +29,7 @@ export class HitRegistry {
         const x = Math.min(...shapes.map(b => b.x)), y = Math.min(...shapes.map(b => b.y));
         return { x, y, w: Math.max(...shapes.map(b => b.x + b.w)) - x, h: Math.max(...shapes.map(b => b.y + b.h)) - y };
     }
-    targets() { return [...new Map(this.regions.map(r => [r.target.bodyKey ?? r.target.nodeId, r.target])).values()]; }
+    targets() { return [...new Map(this.regions.map(r => [r.target.bodyKey ?? (r.target.partId ? `${r.target.nodeId}/part/${r.target.partId}/${r.target.partValue ?? ''}` : r.target.nodeId), r.target])).values()]; }
 }
 interface Recorder { registry: HitRegistry; target: SceneTarget; tx: number; ty: number; scale: number; angle?: number; }
 let recorder: Recorder | null = null;
@@ -89,4 +85,11 @@ function intersects(box: Box, s: Shape): boolean {
         const rs = (s.w*Math.abs(u.x*axis.x+u.y*axis.y)+s.h*Math.abs(v.x*axis.x+v.y*axis.y))/2;
         return distance <= rb+rs;
     });
+}
+
+function shapeDistance(s: Shape, x: number, y: number): number {
+    if(s.type==='circle'){const d=Math.hypot(x-s.x,y-s.y);return s.filled?Math.max(0,d-s.r):Math.abs(d-s.r);}
+    if(s.type==='rect'){const a=s.angle??0,dx=x-s.x-s.w/2,dy=y-s.y-s.h/2,u=dx*Math.cos(a)+dy*Math.sin(a),v=-dx*Math.sin(a)+dy*Math.cos(a);return Math.hypot(Math.max(0,Math.abs(u)-s.w/2),Math.max(0,Math.abs(v)-s.h/2));}
+    const dx=s.x2-s.x,dy=s.y2-s.y,l2=dx*dx+dy*dy,t=l2?Math.max(0,Math.min(1,((x-s.x)*dx+(y-s.y)*dy)/l2)):0;
+    return Math.hypot(x-s.x-t*dx,y-s.y-t*dy);
 }

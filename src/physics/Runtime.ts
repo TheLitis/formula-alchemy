@@ -1,7 +1,8 @@
+import { oscillatorMotion } from './interactiveModels';
 import { RECIPE_MAP } from '../core/catalog';
 import { hasBodies } from '../core/entities';
 import type { GameStore } from '../core/store';
-import type { GameState, RuntimeSnapshot } from '../core/types';
+import type { GameState, RuntimeSnapshot, LabState } from '../core/types';
 import { MAX_BODIES, PX_PER_M } from '../core/types';
 import { FxSystem } from '../rendering/FxSystem';
 import { blackHoleAcceleration } from './fieldModel';
@@ -12,6 +13,9 @@ export class SimulationRuntime {
     fx = new FxSystem();
     time = 0;
     ages = new Map<string, number>();
+    labStates = new Map<string, LabState>();
+    partHolds = new Set<string>();
+    setLabState(id: string, value: LabState) { this.labStates.set(id, value); }
     heldNode: string | null = null;
     heldNodes = new Set<string>();
     onCaptureFeedback: (x: number) => void = () => {};
@@ -32,10 +36,20 @@ export class SimulationRuntime {
         };
     }
     private sync(state: GameState) {
+        const oldNodes = new Map(this.state.nodes.map(n => [n.id, n]));
         this.state = state;
         const ids = new Set(state.nodes.map(n => n.id));
-        for (const id of this.ages.keys()) if (!ids.has(id)) { this.ages.delete(id); this.revisions.delete(id); this.motions.delete(id); }
-        for (const node of state.nodes) if (this.revisions.get(node.id) !== node.revision) { this.ages.set(node.id, 0); this.revisions.set(node.id, node.revision); }
+        for (const id of this.ages.keys()) if (!ids.has(id)) { this.ages.delete(id); this.revisions.delete(id); this.motions.delete(id); this.labStates.delete(id); this.partHolds.delete(id); }
+        for (const node of state.nodes) if (this.revisions.get(node.id) !== node.revision) { this.ages.set(node.id, 0); this.labStates.delete(node.id); this.revisions.set(node.id, node.revision); }
+        for (const n of state.nodes) {
+            const old = oldNodes.get(n.id), saved = this.labStates.get(n.id);
+            if (!old || !saved || saved.kind !== 'oscillator') continue;
+            if (n.params.amplitude !== old.params.amplitude) { this.labStates.delete(n.id); this.ages.set(n.id,0); }
+            else if (['L','g','k','m'].some(k=>n.params[k]!==old.params[k])) {
+                const age=this.ages.get(n.id)??0, p=oscillatorMotion(old,age,saved);
+                this.labStates.set(n.id,{kind:'oscillator',position:p.position,velocity:p.velocity,epoch:age});
+            }
+        }
         this.world.sync(state.nodes);
     }
     advance(realSeconds: number) {
@@ -47,7 +61,7 @@ export class SimulationRuntime {
             this.time += dt; this.fx.step(dt);
             for (const node of this.state.nodes) {
                 const circuit = node.recipeId && RECIPE_MAP[node.recipeId].lab === 'circuits';
-                if (!circuit || node.closed) this.ages.set(node.id, (this.ages.get(node.id) ?? 0) + dt);
+                if (!this.partHolds.has(node.id) && (!circuit || node.closed)) this.ages.set(node.id, (this.ages.get(node.id) ?? 0) + dt);
             }
             this.world.step(dt, this.ages, this.state.trails);
             const holes = this.state.nodes.filter(n => n.recipeId === 'blackhole');
@@ -74,9 +88,9 @@ export class SimulationRuntime {
         for (const id of this.capturedOwners) if (![...this.world.bodies.values()].some(b => b.owner === id)) this.store.remove(id, true);
         this.capturedOwners.clear();
     }
-    snapshot(): RuntimeSnapshot { return { time: this.time, ages: Object.fromEntries(this.ages), bodies: this.world.snapshot(), absorbed: [...this.world.absorbed], anchors: this.world.snapshotAnchors(), motions: Object.fromEntries(this.motions) }; }
-    restore(data: RuntimeSnapshot) { this.time = data.time; this.accumulator = 0; this.ages = new Map(Object.entries(data.ages)); this.motions = new Map(Object.entries(data.motions ?? {})); this.heldNode = null; this.heldNodes.clear(); this.capturedOwners.clear(); this.fx.clear(); this.world.restore(data.bodies, data.absorbed); this.world.restoreAnchors(data.anchors); }
+    snapshot(): RuntimeSnapshot { return { time: this.time, ages: Object.fromEntries(this.ages), bodies: this.world.snapshot(), absorbed: [...this.world.absorbed], anchors: this.world.snapshotAnchors(), motions: Object.fromEntries(this.motions), labStates: Object.fromEntries(this.labStates) }; }
+    restore(data: RuntimeSnapshot) { this.time = data.time; this.accumulator = 0; this.ages = new Map(Object.entries(data.ages)); this.motions = new Map(Object.entries(data.motions ?? {})); this.labStates = new Map(Object.entries(data.labStates ?? {})); this.partHolds.clear(); this.heldNode = null; this.heldNodes.clear(); this.capturedOwners.clear(); this.fx.clear(); this.world.restore(data.bodies, data.absorbed); this.world.restoreAnchors(data.anchors); }
     clearMotions(ids: ReadonlySet<string>) { for (const id of ids) this.motions.delete(id); }
-    reset() { this.time = 0; this.accumulator = 0; this.ages.clear(); this.motions.clear(); this.fx.clear(); this.world.clearFreeBodies(); this.world.absorbed.clear(); }
+    reset() { this.time = 0; this.accumulator = 0; this.ages.clear(); this.motions.clear(); this.labStates.clear(); this.partHolds.clear(); this.fx.clear(); this.world.clearFreeBodies(); this.world.absorbed.clear(); }
     dispose() { this.unsubscribe(); this.store.onCraft = () => {}; this.world.dispose(); }
 }

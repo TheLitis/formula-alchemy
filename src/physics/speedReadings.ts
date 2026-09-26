@@ -3,8 +3,9 @@ import Matter from 'matter-js';
 import { G } from '../core/evaluate';
 import { isApparatus } from '../core/entities';
 import { PX_PER_M } from '../core/types';
-import type { FormulaNode, GameState } from '../core/types';
+import type { FormulaNode, GameState, LabState } from '../core/types';
 import type { PhysicsWorld } from './World';
+import { oscillatorMotion, satelliteMotion } from './interactiveModels';
 import { rodPosition } from './labModels';
 
 export interface SpeedReading {
@@ -29,25 +30,23 @@ export function apparatusTransform(n: FormulaNode, lab: GameState['lab']) {
 }
 
 /** Exactly the analytic trajectories used in the diagrams, before display scaling. */
-export function apparatusSpeed(n: FormulaNode, age: number): SpeedReading | null {
+export function apparatusSpeed(n: FormulaNode, age: number, saved?: LabState): SpeedReading | null {
     const p = n.params;
     const base = { key: `${n.id}/speed`, nodeId: n.id, kind: 'apparatus' as const, radius: 22, unit: 'м/с' as const };
     switch (n.recipeId) {
         case 'gravitation': {
-            const r = p.r * 1e6, gm = G * p.M * 1e24, omega = Math.sqrt(gm / r ** 3);
-            const a = omega * age * 200; // only the drawing runs at orbital time ×200
+            const r = p.r * 1e6, gm = G * p.M * 1e24;
+            const a = satelliteMotion(n, age, saved).phase; // only the drawing runs at orbital time ×200
             return { ...base, label: 'Спутник', value: Math.sqrt(gm / r) / 1000, unit: 'км/с',
                 x: 500 + Math.cos(a) * p.r * 17, y: 365 + Math.sin(a) * p.r * 17, radius: 12 };
         }
         case 'springPeriod': {
-            const omega = Math.sqrt(p.k / p.m);
-            return { ...base, label: 'Груз на пружине', value: Math.abs(p.amplitude * omega * Math.sin(omega * age)),
-                x: 500 + Math.cos(omega * age) * p.amplitude * PX_PER_M, y: 310 };
+            const motion = oscillatorMotion(n, age, saved);
+            return { ...base, label: 'Груз на пружине', value: Math.abs(motion.velocity), x: motion.x, y: motion.y };
         }
         case 'pendulum': {
-            const omega = Math.sqrt(p.g / p.L), theta = .20944 * Math.cos(omega * age);
-            return { ...base, label: 'Груз маятника', value: Math.abs(p.L * .20944 * omega * Math.sin(omega * age)),
-                x: 490 + Math.sin(theta) * p.L * 52, y: 180 + Math.cos(theta) * p.L * 52, radius: 17 };
+            const motion = oscillatorMotion(n, age, saved);
+            return { ...base, label: 'Груз маятника', value: Math.abs(p.L * motion.velocity), x: motion.x, y: motion.y, radius: 17 };
         }
         case 'wave':
             return { ...base, label: 'Скорость распространения волны', prefix: 'волна',
@@ -63,7 +62,7 @@ export function apparatusSpeed(n: FormulaNode, age: number): SpeedReading | null
     }
 }
 
-export function collectSpeedReadings(state: GameState, world: PhysicsWorld, ages: ReadonlyMap<string, number>): SpeedReading[] {
+export function collectSpeedReadings(state: GameState, world: PhysicsWorld, ages: ReadonlyMap<string, number>, labStates?: ReadonlyMap<string, LabState>): SpeedReading[] {
     const readings: SpeedReading[] = [];
     if (state.lab === 'sandbox') {
         for (const item of world.bodies.values()) {
@@ -77,7 +76,7 @@ export function collectSpeedReadings(state: GameState, world: PhysicsWorld, ages
     }
     for (const n of state.nodes) {
         if (!isApparatus(n) || (state.lab !== 'sandbox' && n.id !== state.activeId)) continue;
-        const reading = apparatusSpeed(n, ages.get(n.id) ?? 0);
+        const reading = apparatusSpeed(n, ages.get(n.id) ?? 0, labStates?.get(n.id));
         if (!reading || !Number.isFinite(reading.value)) continue;
         const { scale, tx, ty, angle } = apparatusTransform(n, state.lab);
         const point = rotateVector({ x: reading.x * scale, y: reading.y * scale }, angle);
