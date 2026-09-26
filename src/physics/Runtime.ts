@@ -13,6 +13,7 @@ export class SimulationRuntime {
     time = 0;
     ages = new Map<string, number>();
     heldNode: string | null = null;
+    heldNodes = new Set<string>();
     onCaptureFeedback: (x: number) => void = () => {};
     private revisions = new Map<string, number>();
     private accumulator = 0;
@@ -51,7 +52,7 @@ export class SimulationRuntime {
             this.world.step(dt, this.ages, this.state.trails);
             const holes = this.state.nodes.filter(n => n.recipeId === 'blackhole');
             if (holes.length) for (const node of this.state.nodes) {
-                if (node.id === this.heldNode || node.recipeId === 'blackhole' || hasBodies(node) || this.capturedOwners.has(node.id)) continue;
+                if (node.id === this.heldNode || this.heldNodes.has(node.id) || node.recipeId === 'blackhole' || hasBodies(node) || this.capturedOwners.has(node.id)) continue;
                 const p = positions.get(node.id) ?? { x: node.x, y: node.y }, v = this.motions.get(node.id) ?? { vx: 0, vy: 0 };
                 for (const hole of holes) {
                     const h = blackHoleGeometry(hole), dx = h.x - p.x, dy = h.y - p.y;
@@ -73,8 +74,9 @@ export class SimulationRuntime {
         for (const id of this.capturedOwners) if (![...this.world.bodies.values()].some(b => b.owner === id)) this.store.remove(id, true);
         this.capturedOwners.clear();
     }
-    snapshot(): RuntimeSnapshot { return { time: this.time, ages: Object.fromEntries(this.ages), bodies: this.world.snapshot(), absorbed: [...this.world.absorbed] }; }
-    restore(data: RuntimeSnapshot) { this.time = data.time; this.accumulator = 0; this.ages = new Map(Object.entries(data.ages)); this.motions.clear(); this.fx.clear(); this.world.restore(data.bodies, data.absorbed); }
+    snapshot(): RuntimeSnapshot { return { time: this.time, ages: Object.fromEntries(this.ages), bodies: this.world.snapshot(), absorbed: [...this.world.absorbed], anchors: this.world.snapshotAnchors(), motions: Object.fromEntries(this.motions) }; }
+    restore(data: RuntimeSnapshot) { this.time = data.time; this.accumulator = 0; this.ages = new Map(Object.entries(data.ages)); this.motions = new Map(Object.entries(data.motions ?? {})); this.heldNode = null; this.heldNodes.clear(); this.capturedOwners.clear(); this.fx.clear(); this.world.restore(data.bodies, data.absorbed); this.world.restoreAnchors(data.anchors); }
+    clearMotions(ids: ReadonlySet<string>) { for (const id of ids) this.motions.delete(id); }
     reset() { this.time = 0; this.accumulator = 0; this.ages.clear(); this.motions.clear(); this.fx.clear(); this.world.clearFreeBodies(); this.world.absorbed.clear(); }
     dispose() { this.unsubscribe(); this.store.onCraft = () => {}; this.world.dispose(); }
 }

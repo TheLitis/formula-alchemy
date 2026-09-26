@@ -43,6 +43,7 @@ def main() -> None:
     args = parser.parse_args()
     out = ROOT / "public/audio"
     out.mkdir(parents=True, exist_ok=True)
+    previous = json.loads((out / 'credits.json').read_text()) if (out / 'credits.json').exists() else {}
     archives: dict[str, zipfile.ZipFile] = {}
     for key, (title, page, url, digest) in PACKS.items():
         path = args.cache / f"{key}.zip" if args.cache else None
@@ -80,9 +81,12 @@ def main() -> None:
             f.writeframes(struct.pack("<" + "h" * len(samples), *samples))
         records.append({"file": output.name, "purpose": purpose, "author": "Kenney", "license": "CC0-1.0", "pack": PACKS[pack][0], "sourcePage": PACKS[pack][1], "originalFile": entry, "sourceSHA256": hashlib.sha256(source).hexdigest(), "sha256": hashlib.sha256(output.read_bytes()).hexdigest(), "durationSeconds": round(len(samples) / 44100, 6), "peakDbFS": round(20 * math.log10(max(abs(v) for v in samples) / 32768), 2), "rmsDbFS": round(20 * math.log10(math.sqrt(sum(v*v for v in samples)/len(samples)) / 32768), 2), "bytes": output.stat().st_size})
     manifest = {"version": 1, "license": "CC0-1.0", "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/", "modifications": "Original OGG decoded to mono PCM WAV, 44.1 kHz, 16-bit; peak matched to -3 dBFS (gain capped at 4x). Runtime event gains are separate. No content generated or purchased.", "packs": [{"name": p[0], "page": p[1], "download": p[2], "sha256": p[3]} for p in PACKS.values()], "files": records}
+    if "music" in previous: manifest["music"] = previous["music"]
     (out / "credits.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for archive in archives.values():
         archive.close()
+    # The current UI bank is deliberately softer than the original imported confirmations.
+    subprocess.run([__import__('sys').executable, str(ROOT / 'scripts/soften-ui-audio.py'), *(['--cache', str(args.cache)] if args.cache else [])], check=True)
     print(f"Imported {len(records)} CC0 samples, {sum(r['bytes'] for r in records):,} bytes, all peak ≤ -3 dBFS.")
 
 if __name__ == "__main__":

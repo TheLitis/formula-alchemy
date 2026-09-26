@@ -7,7 +7,7 @@ import { Icon } from './Icon';
 export function SaveManager({ onClose }: {
     onClose: () => void;
 }) {
-    const session = useSession(), { store, runtime } = session;
+    const session = useSession(), { store, editor } = session;
     const [name, setName] = useState('Мой эксперимент'), [error, setError] = useState(''), [deleting, setDeleting] = useState<string | null>(null), [slots, setSlots] = useState<SavedExperiment[]>(() => { try {
         return readSlots();
     }
@@ -15,7 +15,7 @@ export function SaveManager({ onClose }: {
         return [];
     } });
     const input = useRef<HTMLInputElement>(null);
-    const load = (saved: SavedExperiment) => { store.load(saved.state); runtime.restore(saved.runtime); try {
+    const load = (saved: SavedExperiment) => { editor.load(saved); try {
         writeAuto(session.snapshot(saved.name));
     }
     catch { /* imported data remains usable even without storage */ } store.notify(`Загружено: ${saved.name}`, 'success'); onClose(); };

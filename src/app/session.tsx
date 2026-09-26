@@ -1,3 +1,4 @@
+import { EditorController } from '../editor/EditorController';
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
 import { AudioEngine } from '../audio/AudioEngine';
 import { GameStore } from '../core/store';
@@ -15,6 +16,7 @@ export function createSession() {
     const store = new GameStore(saved ? { ...saved.state, music: false } : undefined), runtime = new SimulationRuntime(store), audio = new AudioEngine();
     if (saved)
         runtime.restore(saved.runtime);
+    const editor = new EditorController(store, runtime);
     audio.sound = store.getState().sound;
     audio.onError = text => store.notify(text);
     audio.onMusicFailure = () => store.patch({ music: false });
@@ -22,7 +24,7 @@ export function createSession() {
     runtime.world.onCollision = (strength, x) => audio.impact(strength, x);
     runtime.onCaptureFeedback = x => audio.absorb(x);
     const stopAudioSync = store.subscribe(() => { audio.sound = store.getState().sound; audio.setMusic(store.getState().music); });
-    return { store, runtime, audio, storageError, snapshot: (name = 'Автосохранение') => makeSave(store.getState(), runtime.snapshot(), name), dispose: () => { stopAudioSync(); store.onFeedback = () => {}; runtime.dispose(); audio.dispose(); } };
+    return { store, runtime, audio, editor, storageError, snapshot: (name = 'Автосохранение') => makeSave(store.getState(), runtime.snapshot(), name), dispose: () => { stopAudioSync(); store.onFeedback = () => {}; editor.dispose(); runtime.dispose(); audio.dispose(); } };
 }
 export type Session = ReturnType<typeof createSession>;
 export const SessionContext = createContext<Session | null>(null);

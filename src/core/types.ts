@@ -38,6 +38,8 @@ export interface FormulaNode {
     x: number;
     y: number;
     recipeId?: string;
+    /** Authored orientation in degrees clockwise; omitted in legacy v1 saves. */
+    rotation?: number;
     params: Record<string, number>;
     revision: number;
     closed: boolean;
@@ -50,6 +52,7 @@ export interface Discovery {
 export interface GameState {
     nodes: FormulaNode[];
     selectedId: string | null;
+    selectedIds?: string[];
     discoveries: Discovery[];
     paused: boolean;
     speed: number;
@@ -80,6 +83,8 @@ export interface RuntimeSnapshot {
     ages: Record<string, number>;
     bodies: BodySnapshot[];
     absorbed: string[];
+    anchors?: Record<string, { x: number; y: number }>;
+    motions?: Record<string, { vx: number; vy: number }>;
 }
 export interface SavedExperiment {
     version: 1;

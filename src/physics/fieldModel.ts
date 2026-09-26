@@ -1,10 +1,11 @@
+import { orientation } from '../editor/geometry';
 import type { FormulaNode } from '../core/types';
 import { PX_PER_M } from '../core/types';
 
 export interface FieldRegion { owner: string; kind: 'electric' | 'magnetic' | 'gravity' | 'wire' | 'source'; x: number; y: number; radius: number; value: number; angle: number; }
 export function fieldsForNode(n: FormulaNode): FieldRegion[] {
     const p = n.params, id = n.recipeId, symbol = !id && n.parts.length === 1 ? n.parts[0] : '';
-    const base = { owner: n.id, x: n.x, y: n.y, radius: (p.extent ?? 5) * PX_PER_M, angle: id === 'electricField' ? Math.PI / 2 : (p.angle ?? 0) * Math.PI / 180 };
+    const base = { owner: n.id, x: n.x, y: n.y, radius: (p.extent ?? 5) * PX_PER_M, angle: (id === 'electricField' ? Math.PI / 2 : (p.angle ?? 0) * Math.PI / 180) + orientation(n) };
     const fields: FieldRegion[] = [];
     if (symbol === 'E' || id === 'electricField' || id === 'crossedFields') fields.push({ ...base, kind: 'electric', value: p.E ?? 6 });
     if (symbol === 'B' || id === 'lorentz' || id === 'crossedFields') fields.push({ ...base, kind: 'magnetic', value: p.B ?? 1 });

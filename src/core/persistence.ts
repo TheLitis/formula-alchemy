@@ -29,6 +29,7 @@ export function validateSave(input: unknown): SavedExperiment {
     ids.add(n.id);
     if (!num(n.x, 0, 1000) || !num(n.y, 0, 680) || !num(n.revision, 0, 1e9) || !Number.isInteger(n.revision) || !isObject(n.params)) return fail();
 
+    if (n.rotation !== undefined && !num(n.rotation, 0, 359.99999999)) return fail();
     const params: Record<string, number> = {};
     let recipeId: string | undefined;
     if (n.recipeId !== undefined) {
@@ -54,7 +55,7 @@ export function validateSave(input: unknown): SavedExperiment {
       }
     }
 
-    return { id: n.id, parts: [...n.parts] as string[], x: n.x, y: n.y, recipeId, params, revision: n.revision, closed: bool(n.closed) };
+    return { id: n.id, parts: [...n.parts] as string[], x: n.x, y: n.y, recipeId, params, ...(n.rotation !== undefined ? { rotation: n.rotation as number } : {}), revision: n.revision, closed: bool(n.closed) };
   });
 
   const discoveries: Discovery[] = s.discoveries.map((d: unknown) => {
@@ -92,10 +93,28 @@ export function validateSave(input: unknown): SavedExperiment {
 
   if (!r.absorbed.every(x => softStr(x))) return fail();
 
+  if (s.selectedIds !== undefined && (!Array.isArray(s.selectedIds) || s.selectedIds.length > MAX_NODES || !s.selectedIds.every(id => typeof id === 'string' && ids.has(id)) || new Set(s.selectedIds).size !== s.selectedIds.length)) return fail();
+  const anchors: Record<string, { x: number; y: number }> = {};
+  const motions: Record<string, { vx: number; vy: number }> = {};
+  for (const name of ['anchors', 'motions'] as const) {
+    if (r[name] === undefined) continue;
+    if (!isObject(r[name])) return fail();
+    for (const [id, value] of Object.entries(r[name])) {
+      if (!ids.has(id) || !isObject(value)) return fail();
+      if (name === 'anchors') {
+        if (!num(value.x, -10000, 10000) || !num(value.y, -10000, 10000)) return fail();
+        anchors[id] = { x: value.x, y: value.y };
+      } else {
+        if (!num(value.vx, -1e6, 1e6) || !num(value.vy, -1e6, 1e6)) return fail();
+        motions[id] = { vx: value.vx, vy: value.vy };
+      }
+    }
+  }
   const state: GameState = {
     nodes,
     discoveries,
     selectedId: s.selectedId as string | null,
+    ...(s.selectedIds !== undefined ? { selectedIds: s.selectedIds as string[] } : {}),
     activeId: s.activeId as string | null,
     lab: s.lab as GameState['lab'],
     paused: bool(s.paused),
@@ -108,7 +127,7 @@ export function validateSave(input: unknown): SavedExperiment {
     sound: bool(s.sound),
   };
 
-  return { version: 1, id: input.id, name: input.name, savedAt: input.savedAt, state, runtime: { time: r.time, ages, bodies, absorbed: r.absorbed as string[] } };
+  return { version: 1, id: input.id, name: input.name, savedAt: input.savedAt, state, runtime: { time: r.time, ages, bodies, absorbed: r.absorbed as string[], ...(r.anchors !== undefined ? { anchors } : {}), ...(r.motions !== undefined ? { motions } : {}) } };
 }
 
 export function parseSave(text: string): SavedExperiment {

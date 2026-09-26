@@ -2,7 +2,7 @@
   "version": 1,
   "license": "CC0-1.0",
   "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "modifications": "Original OGG decoded to mono PCM WAV, 44.1 kHz, 16-bit; peak matched to -3 dBFS (gain capped at 4x). Runtime event gains are separate. No content generated or purchased.",
+  "modifications": "Original OGG samples decoded to mono PCM WAV (44.1 kHz/16-bit). UI click/craft/discovery/remove/error use wood/cloth/soft impacts, low-pass at 1800 Hz, short fades, peaks -7 to -9 dBFS; some have quiet delayed taps. Drop, impacts, black hole, absorption and separately licensed site-owner music remain unchanged. Runtime gains are separate.",
   "music": {
     "file": "sky-high.mp3",
     "title": "Sky High",
@@ -42,15 +42,23 @@
       "purpose": "Выбор / кнопки",
       "author": "Kenney",
       "license": "CC0-1.0",
-      "pack": "Interface Sounds",
-      "sourcePage": "https://kenney.nl/assets/interface-sounds",
-      "originalFile": "Audio/click_001.ogg",
-      "sourceSHA256": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9",
-      "sha256": "3e37120dfa82e62b10f1f300d56413f57ff99fb559f3cbf535b4df4b5816babe",
-      "durationSeconds": 0.09712,
-      "peakDbFS": -3.0,
-      "rmsDbFS": -28.04,
-      "bytes": 8610
+      "pack": "Impact Sounds",
+      "sourcePage": "https://kenney.nl/assets/impact-sounds",
+      "originalFile": "Audio/impactWood_light_000.ogg",
+      "sourceSHA256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+      "sha256": "c2b0a54e39c5deb5b18c500ae985b69d8022453a41f99e4b31803170460f0bd4",
+      "durationSeconds": 0.14,
+      "peakDbFS": -8.0,
+      "rmsDbFS": -25.9,
+      "bytes": 12392,
+      "processing": {
+        "lowPassHz": 1800,
+        "filter": "two Butterworth biquads",
+        "attackMs": 4,
+        "fadeOutMs": 35,
+        "extraTaps": [],
+        "peakTargetDbFS": -8
+      }
     },
     {
       "file": "drop.wav",
@@ -72,60 +80,111 @@
       "purpose": "Соединение / повтор рецепта",
       "author": "Kenney",
       "license": "CC0-1.0",
-      "pack": "Interface Sounds",
-      "sourcePage": "https://kenney.nl/assets/interface-sounds",
-      "originalFile": "Audio/confirmation_003.ogg",
-      "sourceSHA256": "3091bf0be0497f825769ee0733ca7bdc3bcd59bd6c6e8f2ba8f93d580ff38022",
-      "sha256": "15a37380a877f852b49576fa626929d70dc7092cd070569329cace4b8c3df987",
-      "durationSeconds": 0.322018,
-      "peakDbFS": -3.0,
-      "rmsDbFS": -17.24,
-      "bytes": 28446
+      "pack": "Impact Sounds",
+      "sourcePage": "https://kenney.nl/assets/impact-sounds",
+      "originalFile": "Audio/impactWood_light_001.ogg",
+      "sourceSHA256": "4b76bf3ccc8e60d19188f3165b778a7817786faa6887c55d9049bcbeef3b425f",
+      "sha256": "9247488704c4b950e9e2236c2bc66acfbdfe9c15e20fec16fdb776b19cb7dbac",
+      "durationSeconds": 0.235011,
+      "peakDbFS": -7.0,
+      "rmsDbFS": -27.27,
+      "bytes": 20772,
+      "processing": {
+        "lowPassHz": 1800,
+        "filter": "two Butterworth biquads",
+        "attackMs": 4,
+        "fadeOutMs": 35,
+        "extraTaps": [
+          [
+            0.075,
+            0.5
+          ]
+        ],
+        "peakTargetDbFS": -7
+      }
     },
     {
       "file": "discovery.wav",
       "purpose": "Новое открытие",
       "author": "Kenney",
       "license": "CC0-1.0",
-      "pack": "Interface Sounds",
-      "sourcePage": "https://kenney.nl/assets/interface-sounds",
-      "originalFile": "Audio/confirmation_004.ogg",
-      "sourceSHA256": "568967a3d9f8a8f6af54ea01729c4882284308f2a27d78c07ffd7ee0d6951661",
-      "sha256": "0ff4defa660c5ff9f3c37b52f664ebd24207c80ac5f47e0610dcd93723139bf9",
-      "durationSeconds": 0.490408,
-      "peakDbFS": -3.0,
-      "rmsDbFS": -13.86,
-      "bytes": 43298
+      "pack": "Impact Sounds",
+      "sourcePage": "https://kenney.nl/assets/impact-sounds",
+      "originalFile": "Audio/impactWood_medium_001.ogg",
+      "sourceSHA256": "15271dbe8e2872dbb0ff1aeb7b12b2d2b92b7c1951c88532b9ab9158c36dfc73",
+      "sha256": "996a995b38df844ce9a37b46e2c95d5a6f59a8e948031496e85a7fed73f0ed1f",
+      "durationSeconds": 0.38,
+      "peakDbFS": -7.0,
+      "rmsDbFS": -24.57,
+      "bytes": 33560,
+      "processing": {
+        "lowPassHz": 1800,
+        "filter": "two Butterworth biquads",
+        "attackMs": 4,
+        "fadeOutMs": 35,
+        "extraTaps": [
+          [
+            0.09,
+            0.48
+          ],
+          [
+            0.18,
+            0.24
+          ]
+        ],
+        "peakTargetDbFS": -7
+      }
     },
     {
       "file": "remove.wav",
       "purpose": "Удаление / очистка",
       "author": "Kenney",
       "license": "CC0-1.0",
-      "pack": "Interface Sounds",
-      "sourcePage": "https://kenney.nl/assets/interface-sounds",
-      "originalFile": "Audio/minimize_001.ogg",
-      "sourceSHA256": "8481912bc7fa5828924a00ef15b6cd613b994956e0817bd3122065c9b2896d2d",
-      "sha256": "774c68d4118d4681c52fedcbcb769c99394630055f565fb565d69ef850800ab0",
-      "durationSeconds": 0.25839,
-      "peakDbFS": -3.0,
-      "rmsDbFS": -15.08,
-      "bytes": 22834
+      "pack": "Impact Sounds",
+      "sourcePage": "https://kenney.nl/assets/impact-sounds",
+      "originalFile": "Audio/footstep_carpet_000.ogg",
+      "sourceSHA256": "b9524658b52a99a20590f8feefc103088637fd13ea8ec35811aee785e1f2f330",
+      "sha256": "baa6d67e8ca07085ee163231ceb8a8bc096342c346c1d327a64caff0961b88db",
+      "durationSeconds": 0.166893,
+      "peakDbFS": -9.0,
+      "rmsDbFS": -31.67,
+      "bytes": 14764,
+      "processing": {
+        "lowPassHz": 1800,
+        "filter": "two Butterworth biquads",
+        "attackMs": 4,
+        "fadeOutMs": 35,
+        "extraTaps": [],
+        "peakTargetDbFS": -9
+      }
     },
     {
       "file": "error.wav",
       "purpose": "Недопустимое действие",
       "author": "Kenney",
       "license": "CC0-1.0",
-      "pack": "Interface Sounds",
-      "sourcePage": "https://kenney.nl/assets/interface-sounds",
-      "originalFile": "Audio/error_001.ogg",
-      "sourceSHA256": "46e67425d16339772e8d328fb36a49426c9467418686e11beeb71ff84b0f6433",
-      "sha256": "7fb64d42cef82c0b21e7b18588184af5f97cdaa70600c83ed2b32cb76a97e475",
-      "durationSeconds": 0.161655,
-      "peakDbFS": -3.0,
-      "rmsDbFS": -21.19,
-      "bytes": 14302
+      "pack": "Impact Sounds",
+      "sourcePage": "https://kenney.nl/assets/impact-sounds",
+      "originalFile": "Audio/impactSoft_medium_001.ogg",
+      "sourceSHA256": "7642a4fd43e547afe4f7adfadb3dabb681c0ff512f52c1674bae30a726841faf",
+      "sha256": "1513ab8b92246ae53f2e02aae818ef468c5ad54837d3dc133c2c4c26604f787c",
+      "durationSeconds": 0.31,
+      "peakDbFS": -7.0,
+      "rmsDbFS": -22.06,
+      "bytes": 27386,
+      "processing": {
+        "lowPassHz": 1800,
+        "filter": "two Butterworth biquads",
+        "attackMs": 4,
+        "fadeOutMs": 35,
+        "extraTaps": [
+          [
+            0.14,
+            0.65
+          ]
+        ],
+        "peakTargetDbFS": -7
+      }
     },
     {
       "file": "impact-soft.wav",
@@ -187,5 +246,6 @@
       "rmsDbFS": -20.1,
       "bytes": 176448
     }
-  ]
+  ],
+  "uiSoundRevision": 2
 }

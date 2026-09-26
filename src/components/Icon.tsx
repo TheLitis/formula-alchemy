@@ -1,6 +1,12 @@
 import type { CSSProperties } from 'react';
-export type IconName = 'book' | 'flask' | 'journal' | 'save' | 'pause' | 'play' | 'plus' | 'trash' | 'reset' | 'volume' | 'muted' | 'music' | 'close' | 'help' | 'arrow' | 'sliders' | 'grid' | 'search' | 'download' | 'upload' | 'check' | 'chevron' | 'cursor' | 'settings';
+export type IconName = 'book' | 'flask' | 'journal' | 'save' | 'pause' | 'play' | 'plus' | 'trash' | 'reset' | 'volume' | 'muted' | 'music' | 'close' | 'help' | 'arrow' | 'sliders' | 'grid' | 'search' | 'download' | 'upload' | 'check' | 'chevron' | 'cursor' | 'settings' | 'undo' | 'redo' | 'rotate' | 'copy' | 'select' | 'selectAll';
 const paths: Record<IconName, string> = {
+    undo: 'M4 10h9a6 6 0 0 1 0 12M8 5l-5 5 5 5',
+    redo: 'M20 10h-9a6 6 0 0 0 0 12M16 5l5 5-5 5',
+    rotate: 'M19 8a8 8 0 1 0 1 8M19 3v5h-5',
+    copy: 'M8 8h13v13H8V8M16 5V2H2v14h3',
+    select: 'M8 3H3v5M16 3h5v5M3 16v5h5M16 21h5v-5M10 3h4M10 21h4M3 10v4M21 10v4',
+    selectAll: 'M8 3H3v5M16 3h5v5M3 16v5h5M16 21h5v-5M8 8h8v8H8V8',
     book: 'M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1m0-15c3-2 6-2 9-1v15c-3-1-6-1-9 1V5',
     flask: 'M9 3h6m-5 0v7l-6 9c-.5 1 .1 2 1 2h14c1 0 1.5-1 1-2l-6-9V3M7 15h10',
     journal: 'M6 3h14v18H6V3M3 7h5M3 12h5M3 17h5M11 8h5M11 12h5M11 16h3',
