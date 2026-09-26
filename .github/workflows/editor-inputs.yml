@@ -1,0 +1,29 @@
+name: Editor baseline inputs
+on:
+  push:
+    branches: [feat/editor-shortcuts-soft-audio]
+    paths: [.github/workflows/editor-inputs.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Package exact source and dependencies
+        run: |
+          git archive --format=zip HEAD > /tmp/editor-source.zip
+          tar -czf /tmp/editor-dependencies.tar.gz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: editor-baseline-inputs
+          path: |
+            /tmp/editor-source.zip
+            /tmp/editor-dependencies.tar.gz
+          retention-days: 2
