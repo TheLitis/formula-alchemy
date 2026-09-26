@@ -82,8 +82,9 @@ test('physical drag controls change piston, optics, conductor and slit parameter
 });
 
 test('drawn circuit key and atomic levels are directly clickable',async({page})=>{
-    const id=await seed(page,'capacitor'),key=await target(page,id,'switch'),p=await screen(page,key.x,key.y);await page.mouse.click(p.x,p.y);expect((await snap(page)).state.nodes[0].closed).toBe(false);
-    const a=await seed(page,'bohr'),level=await target(page,a,'bohr-level',2),q=await screen(page,level.x,level.y);await page.mouse.click(q.x,q.y);expect((await snap(page)).state.nodes[0].params.n).toBe(3);
+    const id=await seed(page,'capacitor'),key=await target(page,id,'switch'),p=await screen(page,key.x,key.y);await page.mouse.click(p.x,p.y);expect((await snap(page)).state.nodes[0].closed).toBe(false);await expect(page.locator('.inspector-open')).toHaveCount(0);
+    const a=await seed(page,'bohr'),level=await target(page,a,'bohr-level',2),q=await screen(page,level.x,level.y);await page.mouse.click(q.x,q.y);expect((await snap(page)).state.nodes[0].params.n).toBe(3);await expect(page.locator('.inspector-open')).toHaveCount(0);
+    for(const index of [0,4,2]){const next=await target(page,a,'bohr-level',index),p=await screen(page,next.x,next.y);await page.mouse.click(p.x,p.y);expect((await snap(page)).state.nodes[0].params.n).toBe(index+1);}
 });
 
 test('satellite, submerged block and induction magnet can be manipulated independently',async({page})=>{

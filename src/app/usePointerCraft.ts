@@ -149,7 +149,8 @@ export function usePointerCraft(board: RefObject<HTMLDivElement | null>, rendere
                 clean(); return;
             }
             if (!d.moved && !d.transforming) {
-                if(d.part&&d.hit?.partClick)d.part.click();
+                // A direct switch/level is an actuator: do not cover it with the mobile inspector.
+                if(d.part&&d.hit?.partClick){d.part.click();clean();return;}
                 clean();
                 if (d.symbol && SYMBOL_MAP[d.symbol]) addSymbol(d);
                 else if (d.hit && editor.ids.includes(d.hit.nodeId) && window.matchMedia('(max-width:1020px)').matches) inspect.current();
