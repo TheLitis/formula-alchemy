@@ -5,6 +5,9 @@ on:
     paths: [.github/workflows/parts-finish.yml]
 permissions:
   contents: write
+concurrency:
+  group: formula-parts-final-verify
+  cancel-in-progress: true
 defaults:
   run:
     shell: bash
@@ -14,6 +17,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -46,7 +51,7 @@ jobs:
       - name: Resources and untouched audio
         run: |
           npm run verify:dist
-          test -z "$(git diff 809269c92c9b95e1fe7c8696895c8ae4f43136a6 --name-only -- public/audio src/audio)"
+          git diff --exit-code 809269c92c9b95e1fe7c8696895c8ae4f43136a6 -- public/audio src/audio
       - run: npx playwright install --with-deps chromium
       - name: All desktop and mobile HTTP tests, no retry
         run: |
