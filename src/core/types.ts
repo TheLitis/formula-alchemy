@@ -55,6 +55,7 @@ export interface GameState {
     speed: number;
     grid: boolean;
     vectors: boolean;
+    speeds: boolean;
     trails: boolean;
     music: boolean;
     sound: boolean;

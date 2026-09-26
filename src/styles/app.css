@@ -32,3 +32,9 @@
 .drag-ghost{background:transparent;border:0;box-shadow:none;filter:none;padding:0;font:italic 39px Georgia,serif;color:#222;pointer-events:none}
 .board>canvas{outline-offset:-4px}.standalone-next{margin-top:26px}
 @media(max-width:560px){.symbol{min-height:51px}.symbol .katex{font-size:27px}.drag-ghost{font-size:33px}}
+
+.speed-readout{margin:0 0 20px;padding:0 0 16px;border-bottom:1px solid #dfdfdf}.speed-readout h3{font-size:11px;font-weight:500;color:#686868;margin:0 0 9px}.speed-readout>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:6px}.speed-readout>div>span{font-size:11px;color:#777}.speed-readout output{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#333}.speed-readout small{display:block;font-size:9px;line-height:1.6;color:#888;margin-top:9px}
+@media(max-width:560px){.speed-readout h3{font-size:12px}.speed-readout small{font-size:10px}.speed-readout output{font-size:19px}}
+
+/* Keep independent SFX mute reachable on touch devices too. */
+@media(max-width:760px){.header-tools .sound-toggle{display:inline-flex}}

@@ -24,14 +24,24 @@ export function App() {
     useEffect(() => {
         let timeout: ReturnType<typeof setTimeout> | undefined;
         store.onNotice = (text, kind) => { setToast({ text, kind }); if (timeout)
-            clearTimeout(timeout); timeout = setTimeout(() => setToast(null), 4200); if (kind === 'success')
-            audio.discovery(); };
+            clearTimeout(timeout); timeout = setTimeout(() => setToast(null), 4200); if (kind === 'error') audio.error(); };
         if (session.storageError)
             store.notify(session.storageError, 'error');
         return () => { if (timeout)
             clearTimeout(timeout); store.onNotice = () => { }; };
     }, [store, audio, session]);
-    useEffect(() => { audio.sound = state.sound; audio.setMusic(state.music); return () => audio.setMusic(false); }, [audio, state.sound, state.music]);
+    useEffect(() => {
+        const buttonSound = (event: Event) => {
+            const button = (event.target as Element).closest<HTMLButtonElement>('button');
+            if (!button || button.disabled || button.matches('[data-symbol],.sound-toggle,.music-toggle')) return;
+            if (event instanceof PointerEvent && (event.button !== 0 || !event.isPrimary)) return;
+            if (event.type === 'click' && (event as MouseEvent).detail !== 0) return;
+            void audio.unlock().catch(() => {}); audio.click();
+        };
+        document.addEventListener('pointerdown', buttonSound);
+        document.addEventListener('click', buttonSound);
+        return () => { document.removeEventListener('pointerdown', buttonSound); document.removeEventListener('click', buttonSound); };
+    }, [audio]);
     useEffect(() => {
         const key = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') {
@@ -84,7 +94,7 @@ export function App() {
     } };
     return <><div className="app-shell" id="app-shell"><header className="app-header"><a className="wordmark" href="#" onClick={e => { e.preventDefault(); store.patch({ lab: 'sandbox', activeId: null, selectedId: null }); }} aria-label="Formula Alchemy — на холст"><span className="brand-mark">ƒ</span><span>Formula <em>Alchemy</em><small>ФИЗИКА В ВАШИХ РУКАХ</small></span></a>
       <nav aria-label="Основная навигация"><button className={`nav-button ${!modal ? 'nav-active' : ''}`} onClick={() => { setModal(null); store.patch({ lab: 'sandbox', activeId: null, selectedId: null }); }}><Icon name="flask" size={17}/><span>Лаборатория</span></button><button className="nav-button" aria-label="Книга формул" onClick={() => setModal('book')}><Icon name="book" size={17}/><span>Книга формул</span></button><button className="nav-button" aria-label={`Открытия: ${state.discoveries.length}`} onClick={() => setModal('journal')}><Icon name="journal" size={17}/><span>Открытия</span><span className="nav-count">{state.discoveries.length}</span></button></nav>
-      <div className="header-tools"><button className={`icon-button music-toggle ${state.music ? 'active' : ''}`} title={state.music ? 'Выключить музыку' : 'Включить музыку'} aria-label={state.music ? 'Выключить музыку' : 'Включить музыку'} aria-pressed={state.music} onClick={() => { void toggleMusic(); }}><Icon name="music" size={17}/></button><button className="icon-button sound-toggle" aria-label={state.sound ? 'Выключить звуки' : 'Включить звуки'} title={state.sound ? 'Выключить звуки' : 'Включить звуки'} aria-pressed={state.sound} onClick={() => { void audio.unlock().catch(() => { }); store.patch({ sound: !state.sound }); }}><Icon name={state.sound ? 'volume' : 'muted'} size={17}/></button><button className="button dark header-save" aria-label="Сохранить" onClick={() => setModal('save')}><Icon name="save" size={16}/><span>Сохранить</span></button></div>
+      <div className="header-tools"><button className={`icon-button music-toggle ${state.music ? 'active' : ''}`} title={state.music ? 'Выключить музыку' : 'Включить музыку'} aria-label={state.music ? 'Выключить музыку' : 'Включить музыку'} aria-pressed={state.music} onClick={() => { void toggleMusic(); }}><Icon name="music" size={17}/></button><button className="icon-button sound-toggle" aria-label={state.sound ? 'Выключить звуки' : 'Включить звуки'} title={state.sound ? 'Выключить звуки' : 'Включить звуки'} aria-pressed={state.sound} onClick={() => { const enabled = !store.getState().sound; store.patch({ sound: enabled }); if (enabled) void audio.unlock().then(() => audio.click()).catch(() => store.notify('Аудио недоступно в этом браузере.')); }}><Icon name={state.sound ? 'volume' : 'muted'} size={17}/></button><button className="button dark header-save" aria-label="Сохранить" onClick={() => setModal('save')}><Icon name="save" size={16}/><span>Сохранить</span></button></div>
     </header>
     <div className="app-content"><Palette onBook={() => setModal('book')}/><Stage onReset={() => setModal('reset')} onHelp={() => setModal('help')} onInspect={() => setInspectOpen(true)}/>{inspectOpen && <button className="inspector-scrim" aria-label="Закрыть панель параметров" onClick={() => setInspectOpen(false)}/>}<Inspector open={inspectOpen} onClose={() => setInspectOpen(false)} onBook={() => setModal('book')}/></div>
     <footer className="app-footer"><span>Любопытство — единственная предпосылка.</span><span>{RECIPES.length} физических рецепта <span className="footer-dot">·</span> 7–11 классы</span></footer>

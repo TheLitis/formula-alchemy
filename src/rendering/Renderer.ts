@@ -6,6 +6,9 @@ import { blackHoleGeometry } from '../physics/geometry';
 import { fieldsForNode } from '../physics/fieldModel';
 import { FLOOR } from '../physics/World';
 import { EFFECTS } from './effects';
+import { collectSpeedReadings, apparatusTransform } from '../physics/speedReadings';
+import { drawSpeedLabels } from './speedLabels';
+import type { SpeedLabel } from './speedLabels';
 import { drawNodeFields } from './fields';
 import { HitRegistry, recordFor } from './interaction';
 import { arrow, circle, INK, line, MUTED, PAPER, polyline, setLabelScale, setApparatusLabels } from './primitives';
@@ -16,6 +19,7 @@ export class CanvasRenderer {
     c: CanvasRenderingContext2D;
     viewport: Viewport = getViewport(WIDTH, HEIGHT);
     hits = new HitRegistry();
+    speedLabels: SpeedLabel[] = [];
     reduced = false;
     hoverId: string | null = null;
     craftTarget: string | null = null;
@@ -65,8 +69,7 @@ export class CanvasRenderer {
             this.hits.add({ nodeId: n.id, kind: 'node', x: n.x, y: n.y }, { type: 'circle', x: n.x, y: n.y, r: 24, filled: true }, true);
         }
         for (const n of nodes.filter(isApparatus)) {
-            const scale = state.lab === 'sandbox' ? n.recipeId === 'gravitation' ? .9 : .64 : .94;
-            const tx = n.x - 500 * scale, ty = n.y - 360 * scale;
+            const { scale, tx, ty } = apparatusTransform(n, state.lab);
             c.save(); c.translate(tx, ty); c.scale(scale, scale);
             recordFor({ registry: this.hits, target: { nodeId: n.id, kind: 'apparatus', x: n.x, y: n.y }, tx, ty, scale });
             const effect = EFFECTS[n.recipeId!];
@@ -111,6 +114,7 @@ export class CanvasRenderer {
             circle(c, h.x, h.y, h.radius - 7, '#0a0a0a', null);
             this.hits.add({ nodeId: n.id, kind: 'node', x: h.x, y: h.y }, { type: 'circle', x: h.x, y: h.y, r: h.radius + 6, filled: true }, true);
         }
+        this.speedLabels = drawSpeedLabels(c, collectSpeedReadings(state, runtime.world, runtime.ages), state, v);
         if (this.craftTarget) {
             const target = this.hits.targets().find(h => h.nodeId === this.craftTarget);
             if (target) { c.save(); c.setLineDash([3, 5]); circle(c, target.x, target.y, 35, null, '#555', .9); c.restore(); }

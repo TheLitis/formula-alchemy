@@ -15,8 +15,13 @@ export function createSession() {
     const store = new GameStore(saved ? { ...saved.state, music: false } : undefined), runtime = new SimulationRuntime(store), audio = new AudioEngine();
     if (saved)
         runtime.restore(saved.runtime);
-    runtime.world.onCollision = () => audio.impact();
-    return { store, runtime, audio, storageError, snapshot: (name = 'Автосохранение') => makeSave(store.getState(), runtime.snapshot(), name), dispose: () => { runtime.dispose(); audio.dispose(); } };
+    audio.sound = store.getState().sound;
+    audio.onError = text => store.notify(text);
+    store.onFeedback = event => audio[event]();
+    runtime.world.onCollision = (strength, x) => audio.impact(strength, x);
+    runtime.onCaptureFeedback = x => audio.absorb(x);
+    const stopAudioSync = store.subscribe(() => { audio.sound = store.getState().sound; audio.setMusic(store.getState().music); });
+    return { store, runtime, audio, storageError, snapshot: (name = 'Автосохранение') => makeSave(store.getState(), runtime.snapshot(), name), dispose: () => { stopAudioSync(); store.onFeedback = () => {}; runtime.dispose(); audio.dispose(); } };
 }
 export type Session = ReturnType<typeof createSession>;
 export const SessionContext = createContext<Session | null>(null);

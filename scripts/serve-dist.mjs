@@ -11,7 +11,7 @@ const base = read('--base', '/formula-alchemy/');
 if (!Number.isInteger(port) || port < 1 || port > 65535 || !/^\/[\w/-]*\/$/.test(base))
     throw new Error('Invalid port/base');
 await fs.access(path.join(root, 'index.html'));
-const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.ico': 'image/x-icon' };
+const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.wav': 'audio/wav', '.ogg': 'audio/ogg' };
 const server = http.createServer(async (req, res) => {
     try {
         if (req.method !== 'GET' && req.method !== 'HEAD') {

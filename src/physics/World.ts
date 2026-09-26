@@ -23,7 +23,7 @@ export class PhysicsWorld {
     private heldMass = 2;
     private trailTick = 0;
     
-    onCollision: () => void = () => {};
+    onCollision: (strength: number, x: number) => void = () => {};
     onAbsorb: (item: PhysicalBody, hole: FormulaNode) => void = () => {};
 
     constructor() {
@@ -35,7 +35,8 @@ export class PhysicsWorld {
             Matter.Bodies.rectangle(WIDTH / 2, -30, WIDTH + 100, 60, boundary),
         ]);
         Matter.Events.on(this.engine, 'collisionStart', (e: Matter.IEventCollision<Matter.Engine>) => {
-            if (e.pairs.some(pair => !pair.isSensor && pair.bodyA.speed + pair.bodyB.speed > 1.5)) this.onCollision();
+            const pair = e.pairs.filter(p => !p.isSensor).sort((a, b) => (b.bodyA.speed + b.bodyB.speed) - (a.bodyA.speed + a.bodyB.speed))[0];
+            if (pair && pair.bodyA.speed + pair.bodyB.speed > 1.5) this.onCollision(pair.bodyA.speed + pair.bodyB.speed, (pair.bodyA.position.x + pair.bodyB.position.x) / 2);
         });
     }
     spawn(x: number, y: number, mass = 2, owner = 'free', label = 'm', radius = 18, key = uid()): PhysicalBody | null {
