@@ -41,3 +41,10 @@ for (const audio of credits.files) {
         throw new Error(`Corrupt or missing audio: ${audio.file}`);
 }
 console.log(`Bundled CC0 sound paths and hashes verified: ${credits.files.length} WAV files.`);
+
+if (!credits.music || credits.music.file !== 'sky-high.mp3' || !/^[a-z0-9-]+\.mp3$/.test(credits.music.file))
+    throw new Error('Missing or unsafe bundled music record');
+const music = await fs.readFile(path.join(root, 'audio', credits.music.file));
+if (music.length !== credits.music.bytes || createHash('sha256').update(music).digest('hex') !== credits.music.sha256)
+    throw new Error(`Corrupt or missing music: ${credits.music.file}`);
+console.log(`Bundled music path and hash verified: ${credits.music.file}.`);

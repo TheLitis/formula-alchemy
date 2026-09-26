@@ -2,28 +2,30 @@ import { MAX_SFX_VOICES, MAX_SOUND_AGE_MS, SOUNDS, SOUND_IDS } from './sounds';
 import type { SoundId } from './sounds';
 
 interface Voice { source: AudioBufferSourceNode; gain: GainNode; pan: StereoPannerNode }
-/** Sampled CC0 effects + the existing optional procedural score. No third-party requests. */
+/** Bundled sound effects + the licensed, optional NCS music track. */
 export class AudioEngine {
     private ctx: AudioContext | null = null;
     private master: GainNode | null = null;
     private sfxBus: GainNode | null = null;
     private musicBus: GainNode | null = null;
     private compressor: DynamicsCompressorNode | null = null;
+    private musicElement: HTMLAudioElement | null = null;
+    private musicSource: MediaElementAudioSourceNode | null = null;
     private voices = new Set<Voice>();
-    private notes = new Set<OscillatorNode>();
     private buffers = new Map<SoundId, AudioBuffer>();
     private loads = new Map<SoundId, Promise<AudioBuffer | null>>();
     private controllers = new Set<AbortController>();
     private last = new Map<string, number>();
     private played = new Map<SoundId, number>();
     private failed = new Set<SoundId>();
-    private timer: ReturnType<typeof setInterval> | null = null;
-    private step = 0;
     private epoch = 0;
     private disposed = false;
+    private volume = 1;
+    private musicErrorReported = false;
     private _sound = true;
     private _music = false;
     onError: (message: string) => void = () => {};
+    onMusicFailure: () => void = () => {};
     constructor(private baseUrl = import.meta.env.BASE_URL) {}
     get sound() { return this._sound; }
     set sound(enabled: boolean) {
@@ -49,6 +51,7 @@ export class AudioEngine {
             this.sfxBus.connect(this.master); this.musicBus.connect(this.master);
             this.master.connect(this.compressor); this.compressor.connect(this.ctx.destination);
             document.addEventListener('visibilitychange', this.visibility);
+            this.connectMusicElement();
         }
         // resume must be requested synchronously with the gesture, before any fetch await
         const resumed = this.ctx.state === 'suspended' && !document.hidden ? this.ctx.resume() : Promise.resolve();
@@ -125,45 +128,75 @@ export class AudioEngine {
         voice.source.disconnect(); voice.gain.disconnect(); voice.pan.disconnect();
     }
     private stopEffects() { for (const voice of [...this.voices]) this.stopVoice(voice); }
-    private stopMusic() {
-        if (this.timer) clearInterval(this.timer); this.timer = null;
-        for (const osc of this.notes) { try { osc.stop(); } catch { /* already ended */ } osc.disconnect(); }
-        this.notes.clear();
+    private connectMusicElement() {
+        if (!this.ctx || !this.musicBus || !this.musicElement || this.musicSource) return;
+        try {
+            const source = this.ctx.createMediaElementSource(this.musicElement);
+            source.connect(this.musicBus);
+            this.musicSource = source;
+            this.musicElement.volume = 1;
+        } catch {
+            // Keep the track playable if Web Audio routing is unavailable.
+            this.musicElement.volume = this.volume * .22 * .65;
+        }
     }
-    private tone(frequency: number, duration: number, gain: number, type: OscillatorType = 'sine') {
-        if (!this.ctx || !this.musicBus || this.ctx.state !== 'running' || !this.music || document.hidden) return;
-        const t = this.ctx.currentTime, osc = this.ctx.createOscillator(), env = this.ctx.createGain();
-        osc.type = type; osc.frequency.value = frequency;
-        env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(gain, t + .02); env.gain.exponentialRampToValueAtTime(.0001, t + duration);
-        osc.connect(env); env.connect(this.musicBus); this.notes.add(osc);
-        osc.start(t); osc.stop(t + duration + .02);
-        osc.onended = () => { this.notes.delete(osc); osc.disconnect(); env.disconnect(); };
+    private getMusicElement(): HTMLAudioElement | null {
+        if (typeof Audio === 'undefined') return null;
+        if (!this.musicElement) {
+            this.musicElement = new Audio(`${this.baseUrl}audio/sky-high.mp3`);
+            this.musicElement.loop = true;
+            this.musicElement.preload = 'none';
+            this.musicElement.volume = this.volume * .22 * .65;
+            this.musicElement.addEventListener('error', this.musicFailure);
+        }
+        this.connectMusicElement();
+        return this.musicElement;
     }
+    private stopMusic() { this.musicElement?.pause(); }
+    private musicFailure = () => {
+        if (this.disposed || !this.music || this.musicErrorReported) return;
+        this.musicErrorReported = true;
+        this._music = false;
+        this.stopMusic();
+        this.onError('Не удалось воспроизвести музыку. Проверьте подключение и попробуйте ещё раз.');
+        this.onMusicFailure();
+    };
     setMusic(enabled: boolean) {
         if (this.disposed || enabled === this.music) return;
         this._music = enabled;
         if (!enabled) { this.stopMusic(); return; }
-        const notes = [130.81, 196, 261.63, 329.63, 146.83, 220, 293.66, 349.23, 110, 164.81, 220, 261.63, 130.81, 196, 293.66, 392];
-        const tick = () => {
-            if (document.hidden || this.ctx?.state !== 'running') return;
-            this.tone(notes[this.step % notes.length], 1.35, .13);
-            if (this.step % 4 === 0) this.tone(notes[this.step % notes.length] / 2, 1.8, .09, 'triangle');
-            this.step++;
-        };
-        tick(); this.timer = setInterval(tick, 375);
+        this.musicErrorReported = false;
+        const player = this.getMusicElement();
+        if (player) void player.play().catch(this.musicFailure);
     }
     private visibility = () => {
         if (!this.ctx || this.disposed) return;
-        if (document.hidden) { this.epoch++; this.stopEffects(); void this.ctx.suspend().catch(() => {}); }
-        else if (this.sound || this.music) void this.ctx.resume().catch(() => {});
+        if (document.hidden) {
+            this.epoch++; this.stopEffects(); this.musicElement?.pause(); void this.ctx.suspend().catch(() => {});
+            return;
+        }
+        if (this.sound || this.music) {
+            const resumed = this.ctx.resume();
+            if (this.music && this.musicElement) void resumed.then(() => this.musicElement?.play()).catch(this.musicFailure);
+            else void resumed.catch(() => {});
+        }
     };
-    setVolume(value: number) { if (this.ctx && this.master) this.master.gain.setTargetAtTime(Math.max(0, Math.min(1, value)) * .65, this.ctx.currentTime, .03); }
+    setVolume(value: number) {
+        this.volume = Math.max(0, Math.min(1, value));
+        if (this.ctx && this.master) this.master.gain.setTargetAtTime(this.volume * .65, this.ctx.currentTime, .03);
+        if (this.musicElement && !this.musicSource) this.musicElement.volume = this.volume * .22 * .65;
+    }
     /** Read-only diagnostics; exposed to browser tests only through the existing ?qa=1 hook. */
-    status() { return { state: this.ctx?.state ?? 'locked', loaded: [...this.buffers.keys()], failed: [...this.failed], activeEffects: this.voices.size, activeNotes: this.notes.size, played: Object.fromEntries(this.played), sound: this.sound, music: this.music }; }
+    status() { return { state: this.ctx?.state ?? 'locked', loaded: [...this.buffers.keys()], failed: [...this.failed], activeEffects: this.voices.size, activeNotes: this.musicElement ? Number(!this.musicElement.paused) : Number(this.music && this.ctx?.state === 'running'), played: Object.fromEntries(this.played), sound: this.sound, music: this.music }; }
     dispose() {
         this.disposed = true; this.epoch++; this.stopEffects(); this.stopMusic();
         for (const controller of this.controllers) controller.abort(); this.controllers.clear();
         document.removeEventListener('visibilitychange', this.visibility);
+        this.musicSource?.disconnect(); this.musicSource = null;
+        if (this.musicElement) {
+            this.musicElement.removeEventListener('error', this.musicFailure);
+            this.musicElement.removeAttribute('src'); this.musicElement.load(); this.musicElement = null;
+        }
         void this.ctx?.close().catch(() => {}); this.ctx = null;
         this.buffers.clear(); this.loads.clear();
     }

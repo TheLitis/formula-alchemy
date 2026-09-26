@@ -17,6 +17,7 @@ export function createSession() {
         runtime.restore(saved.runtime);
     audio.sound = store.getState().sound;
     audio.onError = text => store.notify(text);
+    audio.onMusicFailure = () => store.patch({ music: false });
     store.onFeedback = event => audio[event]();
     runtime.world.onCollision = (strength, x) => audio.impact(strength, x);
     runtime.onCaptureFeedback = x => audio.absorb(x);

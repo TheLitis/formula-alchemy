@@ -3,6 +3,19 @@
   "license": "CC0-1.0",
   "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
   "modifications": "Original OGG decoded to mono PCM WAV, 44.1 kHz, 16-bit; peak matched to -3 dBFS (gain capped at 4x). Runtime event gains are separate. No content generated or purchased.",
+  "music": {
+    "file": "sky-high.mp3",
+    "title": "Sky High",
+    "artist": "Elektronomia",
+    "release": "Sky High [NCS Release]",
+    "provider": "NoCopyrightSounds",
+    "sourcePage": "https://ncs.io/skyhigh",
+    "watch": "https://youtu.be/TW9d8vYrVFQ",
+    "credit": "Song: Elektronomia - Sky High [NCS Release]\nMusic provided by NoCopyrightSounds\nFree Download/Stream: https://ncs.io/skyhigh\nWatch: https://youtu.be/TW9d8vYrVFQ",
+    "usage": "Included under separate permission granted to the site owner.",
+    "sha256": "38b7b571b93b0df53b4f3f6832f9432c0a32906383a5de1c0e9db33b22ed3156",
+    "bytes": 9452217
+  },
   "packs": [
     {
       "name": "Interface Sounds",
