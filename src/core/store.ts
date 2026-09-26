@@ -26,6 +26,9 @@ export class GameStore {
     private emit(next: GameState) { this.state = next; for (const f of this.listeners) f(); }
     patch(partial: Partial<GameState>) { this.emit({ ...this.state, ...partial }); }
     notify(message: string, kind: NoticeKind = 'info') { this.onNotice(message, kind); }
+    private recipeFeedback(recipeId: string | undefined, isNew: boolean) {
+        this.onFeedback(recipeId === 'blackhole' ? 'blackhole' : isNew ? 'discovery' : 'craft');
+    }
     private discover(recipeId: string, source: 'craft' | 'book') {
         if (this.state.discoveries.some(d => d.recipeId === recipeId)) return;
         this.state = { ...this.state, discoveries: [...this.state.discoveries, { recipeId, at: new Date().toISOString(), source }] };
@@ -61,14 +64,14 @@ export class GameStore {
         if (!merged) { this.notify('Не соединяются: выберите совместимые символы.'); return false; }
         if (point) { merged.x = point.x; merged.y = point.y; }
         if (!merged.recipeId) merged.params = standaloneDefaults(merged.parts);
-        const isNew = merged.recipeId && !this.state.discoveries.some(d => d.recipeId === merged.recipeId);
+        const isNew = !!merged.recipeId && !this.state.discoveries.some(d => d.recipeId === merged.recipeId);
         this.onCraft([a, b], merged);
         this.state = { ...this.state, nodes: [...this.state.nodes.filter(n => n.id !== b.id && (!sourceOnBoard || n.id !== a.id)), merged] };
         if (merged.recipeId) this.discover(merged.recipeId, 'craft');
         else this.notify('Промежуточная комбинация. Добавьте недостающий символ.');
         // The new phenomenon is visible; its formula appears only after explicitly selecting it.
         this.patch({ selectedId: null, activeId: null, lab: 'sandbox' });
-        this.onFeedback(merged.recipeId === 'blackhole' ? 'blackhole' : isNew ? 'discovery' : 'craft');
+        this.recipeFeedback(merged.recipeId, isNew);
         return true;
     }
     combine(source: string, target: string, point?: { x: number; y: number }): boolean {
@@ -86,11 +89,12 @@ export class GameStore {
         const existing = this.state.nodes.find(n => n.recipeId === recipeId);
         if (existing) { this.restart(existing.id); this.focus(existing.id); return; }
         if (this.state.nodes.length >= MAX_NODES) { this.notify('Холст заполнен.', 'error'); return; }
+        const isNew = !this.state.discoveries.some(d => d.recipeId === recipeId);
         const node: FormulaNode = { id: uid(), parts: [...recipe.inputs], recipeId, x: 500, y: 340, params: defaults(recipe), revision: 0, closed: true };
         this.state = { ...this.state, nodes: [...this.state.nodes, node] };
         this.discover(recipeId, 'book');
         this.focus(node.id);
-        this.onFeedback(recipeId === 'blackhole' ? 'blackhole' : 'discovery');
+        this.recipeFeedback(recipeId, isNew);
     }
     prepareRecipe(recipeId: string) {
         const recipe = RECIPE_MAP[recipeId];
@@ -104,10 +108,11 @@ export class GameStore {
     variant(nodeId: string, recipeId: string) {
         const node = this.state.nodes.find(n => n.id === nodeId), recipe = RECIPE_MAP[recipeId];
         if (!node || !recipe || !exactRecipes(node.parts).some(r => r.id === recipeId)) return;
+        const isNew = !this.state.discoveries.some(d => d.recipeId === recipeId);
         this.state = { ...this.state, nodes: this.state.nodes.map(n => n.id === nodeId ? { ...n, recipeId, params: defaults(recipe), revision: n.revision + 1 } : n) };
         this.discover(recipeId, 'craft');
         this.focus(nodeId);
-        this.onFeedback('craft');
+        this.recipeFeedback(recipeId, isNew);
     }
     setParam(id: string, key: string, value: number) {
         if (!Number.isFinite(value)) return;
