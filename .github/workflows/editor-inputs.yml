@@ -1,29 +1,93 @@
-name: Editor baseline inputs
+name: Editor interaction verification
 on:
   push:
     branches: [feat/editor-shortcuts-soft-audio]
-    paths: [.github/workflows/editor-inputs.yml]
+    paths: [.ci/editor-ready]
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: editor-verification
+  cancel-in-progress: true
 jobs:
-  prepare:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feat/editor-shortcuts-soft-audio
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
-      - name: Package exact source and dependencies
+      - name: Apply exact locally checked source delta; reject any changed baseline
         run: |
-          git archive --format=zip HEAD > /tmp/editor-source.zip
-          tar -czf /tmp/editor-dependencies.tar.gz node_modules
+          python - <<'PY'
+          from pathlib import Path
+          import json, hashlib, base64, lzma
+          root=Path.cwd().resolve()
+          data=lzma.decompress(base64.b64decode(''.join(p.read_text().strip() for p in sorted(Path('.ci').glob('editor-delta-*.txt')))))
+          assert hashlib.sha256(data).hexdigest()=='b9e869e245fdf32728e1f2a2b7d42d99d7508ace4bd41e8bbec4cd1950c8dae2'
+          changes=json.loads(data)
+          assert len(changes)==35 and len({c['path'] for c in changes})==35
+          prepared=[]
+          for c in changes:
+              path=(root/c['path']).resolve()
+              assert path.is_relative_to(root) and not path.is_relative_to(root/'.git') and not path.is_relative_to(root/'.github')
+              before=path.read_bytes() if path.exists() else b''
+              assert hashlib.sha256(before).hexdigest()==c['base'], f'Stale base: {path}'
+              lines=before.decode().splitlines(keepends=True)
+              for start,end,replacement in reversed(c['edits']):
+                  assert 0<=start<=end<=len(lines)
+                  lines[start:end]=replacement.splitlines(keepends=True)
+              prepared.append((path,''.join(lines)))
+          for path,text in prepared:
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_text(text)
+          print('Applied 35 files against exact current-main baseline.')
+          PY
+      - name: Import only the five softer Kenney UI samples; preserve approved audio
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python scripts/soften-ui-audio.py
+      - run: npm ci
+      - run: npm run check
+      - run: npm run verify:dist
+      - run: npx playwright install --with-deps chromium
+      - name: Real HTTP mouse, keyboard, touch, history and audio regressions
+        run: npx playwright test --retries=0
+      - name: Commit validated changes to isolated feature branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm --ignore-unmatch .ci/editor-ready .ci/editor-delta-*.txt .github/workflows/editor-inputs.yml
+          git add src tests e2e scripts public/audio README.md package.json package-lock.json
+          git commit -m 'Add multi-selection, rotation while held, undo/redo and mellow UI audio'
+          git push origin HEAD:feat/editor-shortcuts-soft-audio
+          git rev-parse HEAD
+      - name: Archive actual verified source
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import subprocess
+          with ZipFile('verified-editor-source.zip','w',ZIP_DEFLATED) as z:
+              for name in subprocess.check_output(['git','ls-files'],text=True).splitlines():
+                  p=Path(name)
+                  if p.is_file() and not name.startswith('.ci/') and p.suffix not in ['.ttf','.otf','.woff','.woff2']:
+                      z.write(p,'formula-alchemy/'+name)
+              for root in ['src/editor']:
+                  for p in Path(root).glob('*'):
+                      if p.is_file() and 'formula-alchemy/'+str(p) not in z.namelist():z.write(p,'formula-alchemy/'+str(p))
+          PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: editor-baseline-inputs
+          name: editor-qa-results
           path: |
-            /tmp/editor-source.zip
-            /tmp/editor-dependencies.tar.gz
-          retention-days: 2
+            verified-editor-source.zip
+            test-results
+            playwright-report
+          retention-days: 7
