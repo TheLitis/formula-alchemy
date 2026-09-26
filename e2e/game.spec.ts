@@ -1,3 +1,4 @@
+import type { EditorController } from '../src/editor/EditorController';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { RECIPES } from '../src/core/catalog';
@@ -6,7 +7,7 @@ import type { SimulationRuntime } from '../src/physics/Runtime';
 import type { AudioEngine } from '../src/audio/AudioEngine';
 import type { CanvasRenderer } from '../src/rendering/Renderer';
 
-declare global { interface Window { __alchemyTest: {store: GameStore; runtime: SimulationRuntime; renderer: CanvasRenderer; audio: AudioEngine}; __ALCHEMY_QA__: boolean; } }
+declare global { interface Window { __alchemyTest: {store: GameStore; runtime: SimulationRuntime; renderer: CanvasRenderer; audio: AudioEngine; editor: EditorController}; __ALCHEMY_QA__: boolean; } }
 const offline = process.env.FA_OFFLINE_QA === '1';
 async function boot(page: Page) {
     if (offline) {

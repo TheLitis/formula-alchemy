@@ -1,3 +1,5 @@
+import { orientation, selectionIds } from '../editor/geometry';
+import type { Box } from '../editor/geometry';
 import { HEIGHT, WIDTH } from '../core/types';
 import type { FormulaNode, GameState, Viewport } from '../core/types';
 import { hasBodies, isApparatus, isField, tokenGlyph } from '../core/entities';
@@ -23,13 +25,14 @@ export class CanvasRenderer {
     reduced = false;
     hoverId: string | null = null;
     craftTarget: string | null = null;
+    marquee: { box: Box; additive: boolean } | null = null;
     constructor(public canvas: HTMLCanvasElement) {
         const c = canvas.getContext('2d', { alpha: false }); if (!c) throw new Error('Canvas 2D недоступен.'); this.c = c;
         this.reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
     resize(width: number, height: number) { const dpr = Math.min(window.devicePixelRatio || 1, 1.75); this.canvas.width = Math.round(width * dpr); this.canvas.height = Math.round(height * dpr); this.viewport = getViewport(width, height); }
-    private glyph(value: string, x: number, y: number, size = 42, opacity = 1) {
-        const c = this.c; c.save(); c.globalAlpha = opacity; c.fillStyle = INK; c.font = `italic ${Math.max(size, Math.min(70, 28 / this.viewport.scale))}px Georgia, 'Times New Roman', serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(value, x, y); c.restore();
+    private glyph(value: string, x: number, y: number, size = 42, opacity = 1, angle = 0) {
+        const c = this.c; c.save(); c.globalAlpha = opacity; c.fillStyle = INK; c.font = `italic ${Math.max(size, Math.min(70, 28 / this.viewport.scale))}px Georgia, 'Times New Roman', serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.translate(x, y); c.rotate(angle); c.fillText(value, 0, 0); c.restore();
     }
     private holeBack(n: FormulaNode, time: number) {
         const c = this.c, h = blackHoleGeometry(n);
@@ -65,13 +68,13 @@ export class CanvasRenderer {
             drawNodeFields(c, n, runtime.time, this.reduced);
             for (const f of fields) this.hits.add({ nodeId: n.id, kind: 'node', x: n.x, y: n.y }, f.kind === 'electric' || f.kind === 'gravity' ? { type: 'rect', x: f.x - f.radius, y: f.y - f.radius * .74, w: f.radius * 2, h: f.radius * 1.48, angle: f.angle } : { type: 'circle', x: f.x, y: f.y, r: f.radius, filled: true });
             const glyph = n.recipeId === 'crossedFields' ? 'E  B' : n.recipeId === 'magneticCoil' ? 'I' : n.recipeId === 'gravitySource' || n.recipeId === 'inverseGravity' ? 'M' : n.recipeId === 'electricField' ? 'E' : n.recipeId === 'lorentz' ? 'B' : tokenGlyph(n);
-            if (n.recipeId !== 'magneticCoil') this.glyph(glyph, n.x, n.y, glyph.length > 2 ? 29 : 39);
+            if (n.recipeId !== 'magneticCoil') this.glyph(glyph, n.x, n.y, glyph.length > 2 ? 29 : 39, 1, orientation(n));
             this.hits.add({ nodeId: n.id, kind: 'node', x: n.x, y: n.y }, { type: 'circle', x: n.x, y: n.y, r: 24, filled: true }, true);
         }
         for (const n of nodes.filter(isApparatus)) {
-            const { scale, tx, ty } = apparatusTransform(n, state.lab);
-            c.save(); c.translate(tx, ty); c.scale(scale, scale);
-            recordFor({ registry: this.hits, target: { nodeId: n.id, kind: 'apparatus', x: n.x, y: n.y }, tx, ty, scale });
+            const { scale, tx, ty, angle } = apparatusTransform(n, state.lab);
+            c.save(); c.translate(tx, ty); c.rotate(angle); c.scale(scale, scale);
+            recordFor({ registry: this.hits, target: { nodeId: n.id, kind: 'apparatus', x: n.x, y: n.y }, tx, ty, scale, angle });
             const effect = EFFECTS[n.recipeId!];
             if (!effect) throw new Error(`Нет эффекта ${n.recipeId}`);
             effect({ c, node: n, age: runtime.ages.get(n.id) ?? 0, time: runtime.time, state, world: runtime.world });
@@ -84,7 +87,7 @@ export class CanvasRenderer {
                 if (state.trails) polyline(c, item.trail, '#aaa', .85);
                 if (!item.label) { circle(c, b.position.x, b.position.y, 1.6, '#555', null); continue; }
                 const near = holes.map(n => ({ h: blackHoleGeometry(n) })).find(({ h }) => Math.hypot(b.position.x - h.x, b.position.y - h.y) < h.radius + 70);
-                c.save(); c.translate(b.position.x, b.position.y);
+                c.save(); c.translate(b.position.x, b.position.y); c.rotate(b.angle);
                 if (near) { const dx = b.position.x - near.h.x, dy = b.position.y - near.h.y, d = Math.hypot(dx, dy), k = Math.max(.12, Math.min(1, (d - near.h.radius * .7) / 75)); c.rotate(Math.atan2(dy, dx) * (1 - k)); c.scale(k, k); }
                 this.glyph(item.label, 0, 0);
                 const charge = runtime.world.chargeOf(item);
@@ -96,11 +99,14 @@ export class CanvasRenderer {
             // A spring is attached to its real body, not to a second formula tile.
             for (const n of nodes.filter(n => n.recipeId === 'hooke')) {
                 const b = runtime.world.bodies.get(`${n.id}/0`); if (!b) continue;
-                const pts = Array.from({ length: 37 }, (_, i) => ({ x: n.x - 200 + (b.body.position.x - 24 - n.x + 200) * i / 36, y: n.y + (i === 0 || i === 36 ? 0 : i % 2 ? 8 : -8) }));
-                polyline(c, pts, INK, 1.3); line(c, n.x - 200, n.y - 30, n.x - 200, n.y + 30, INK, 2);
+                const a = orientation(n), u = { x: Math.cos(a), y: Math.sin(a) }, v = { x: -u.y, y: u.x };
+                const from = { x: n.x - 200 * u.x, y: n.y - 200 * u.y }, to = { x: b.body.position.x - 24 * u.x, y: b.body.position.y - 24 * u.y };
+                const pts = Array.from({ length: 37 }, (_, i) => { const d = i === 0 || i === 36 ? 0 : i % 2 ? 8 : -8; return { x: from.x + (to.x - from.x) * i / 36 + v.x * d, y: from.y + (to.y - from.y) * i / 36 + v.y * d }; });
+                polyline(c, pts, INK, 1.3); line(c, from.x - v.x * 30, from.y - v.y * 30, from.x + v.x * 30, from.y + v.y * 30, INK, 2);
+                for (let i = 1; i < pts.length; i++) this.hits.add({ nodeId: n.id, kind: 'node', x: n.x, y: n.y }, { type: 'line', ...pts[i - 1], x2: pts[i].x, y2: pts[i].y });
             }
             for (const n of nodes) if (!hasBodies(n) && !isField(n) && !isApparatus(n) && n.recipeId !== 'blackhole') {
-                this.glyph(tokenGlyph(n), n.x, n.y);
+                this.glyph(tokenGlyph(n), n.x, n.y, 42, 1, orientation(n));
                 this.hits.add({ nodeId: n.id, kind: 'node', x: n.x, y: n.y }, { type: 'circle', x: n.x, y: n.y, r: 23 + Math.max(0, n.parts.length - 1) * 7, filled: true }, true);
             }
             line(c, 0, FLOOR, WIDTH, FLOOR, '#a3a3a3', 1);
@@ -113,6 +119,24 @@ export class CanvasRenderer {
             circle(c, h.x, h.y, h.radius - 3, null, '#ececec', .8);
             circle(c, h.x, h.y, h.radius - 7, '#0a0a0a', null);
             this.hits.add({ nodeId: n.id, kind: 'node', x: h.x, y: h.y }, { type: 'circle', x: h.x, y: h.y, r: h.radius + 6, filled: true }, true);
+        }
+        // Selection is an outline around real geometry, never a proxy object/handle.
+        const selected = selectionIds(state);
+        c.save(); c.strokeStyle = '#737373'; c.lineWidth = .9 / Math.max(.65, v.scale); c.setLineDash([4, 5]);
+        for (const id of selected) {
+            const b = this.hits.boundsFor(new Set([id]));
+            if (b) c.strokeRect(b.x - 7, b.y - 7, b.w + 14, b.h + 14);
+        }
+        if (selected.length > 1) {
+            const b = this.hits.boundsFor(new Set(selected));
+            if (b) { c.setLineDash([7, 5]); c.strokeStyle = '#333'; c.strokeRect(b.x - 14, b.y - 14, b.w + 28, b.h + 28); }
+        }
+        c.restore();
+        if (this.marquee) {
+            const b = this.marquee.box;
+            c.save(); c.fillStyle = 'rgba(45,45,45,.04)'; c.fillRect(b.x, b.y, b.w, b.h);
+            c.strokeStyle = '#414141'; c.lineWidth = 1 / Math.max(.5, v.scale);
+            c.setLineDash(this.marquee.additive ? [5, 4] : []); c.strokeRect(b.x, b.y, b.w, b.h); c.restore();
         }
         this.speedLabels = drawSpeedLabels(c, collectSpeedReadings(state, runtime.world, runtime.ages), state, v);
         if (this.craftTarget) {

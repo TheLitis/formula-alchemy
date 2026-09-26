@@ -1,4 +1,6 @@
 import Matter from 'matter-js';
+import { orientation, rotatePoint, rotateVector } from '../editor/geometry';
+import type { Point } from '../editor/geometry';
 import { clamp, uid } from '../core/store';
 import { hasBodies, isBareBody, tokenGlyph } from '../core/entities';
 import { HEIGHT, MAX_BODIES, PX_PER_M, WIDTH } from '../core/types';
@@ -19,8 +21,7 @@ export class PhysicsWorld {
     private previous = new Map<string, FormulaNode>();
     private nodes: FormulaNode[] = [];
     private anchors = new Map<string, { x: number; y: number }>();
-    private held: PhysicalBody | null = null;
-    private heldMass = 2;
+    private held = new Map<string, { mass: number; velocity: Point; av: number }>();
     private trailTick = 0;
     
     onCollision: (strength: number, x: number) => void = () => {};
@@ -58,7 +59,7 @@ export class PhysicsWorld {
         if (!item) return;
         Matter.Composite.remove(this.engine.world, item.body);
         this.bodies.delete(key);
-        if (this.held === item) this.held = null;
+        this.held.delete(item.key);
     }
     private capture(item: PhysicalBody, hole: FormulaNode) {
         this.absorbed.add(item.key);
@@ -84,10 +85,10 @@ export class PhysicsWorld {
                     for (const item of this.bodies.values()) if (item.owner === node.id && item.label) {
                         const mass = node.recipeId === 'momentum' && item.key.endsWith('/1') ? 2 : node.params.m ?? (isBareBody(node) ? 2 : 1);
                         if (node.params.m !== old.params.m) {
-                            if (this.held === item) this.heldMass = mass;
+                            if (this.held.has(item.key)) this.held.get(item.key)!.mass = mass;
                             else { Matter.Body.setMass(item.body, mass); Matter.Body.setInertia(item.body, Infinity); }
                         }
-                        if ((node.params.v !== old.params.v || node.params.angle !== old.params.angle) && node.params.v !== undefined) this.launch(item, node.params.v, node.params.angle ?? 0);
+                        if ((node.params.v !== old.params.v || node.params.angle !== old.params.angle) && node.params.v !== undefined) this.launch(item, node.params.v, (node.params.angle ?? 0) + (node.rotation ?? 0));
                     }
                 }
             }
@@ -100,7 +101,12 @@ export class PhysicsWorld {
     }
     private setup(n: FormulaNode) {
         const p = n.params, id = n.recipeId;
-        const make = (x: number, y: number, mass = p.m ?? 2, index = 0, label = 'm', radius = 20) => this.spawn(x, y, mass, n.id, label, radius, `${n.id}/${index}`);
+        const make = (x: number, y: number, mass = p.m ?? 2, index = 0, label = 'm', radius = 20) => {
+            const point = id === 'potential' ? { x, y } : rotatePoint({ x, y }, n, orientation(n));
+            const item = this.spawn(point.x, point.y, mass, n.id, label, radius, `${n.id}/${index}`);
+            if (item) Matter.Body.setAngle(item.body, orientation(n));
+            return item;
+        };
         if (id === 'blackhole') {
             const h = blackHoleGeometry(n);
             for (let i = 0; i < 10; i++) {
@@ -112,7 +118,7 @@ export class PhysicsWorld {
         }
         if (isBareBody(n)) {
             const body = make(n.x, n.y, p.m ?? 2, 0, n.parts.includes('q') || n.parts.includes('q2') ? 'q' : tokenGlyph(n));
-            if (body && p.v) this.launch(body, p.v, p.angle ?? 0);
+            if (body && p.v) this.launch(body, p.v, (p.angle ?? 0) + (n.rotation ?? 0));
             return;
         }
         if (!hasBodies(n)) return;
@@ -125,11 +131,11 @@ export class PhysicsWorld {
         if (id === 'coulomb') x = n.x - p.r * PX_PER_M / 2;
         const charged = ['electricField', 'lorentz', 'coulomb'].includes(id ?? '');
         const body = make(x, y, p.m ?? (charged ? 1 : 2), 0, charged ? 'q' : 'm');
-        this.anchors.set(n.id, { x: id === 'hooke' ? n.x : x, y });
+        this.anchors.set(n.id, id === 'hooke' ? { x: n.x, y: n.y } : rotatePoint({ x, y }, n, orientation(n)));
         if (!body) return;
-        if (id === 'kinetic' || id === 'momentum' || id === 'lorentz') this.launch(body, p.v, 0);
-        if (id === 'electricField') this.launch(body, 2, 0);
-        if (id === 'friction') this.launch(body, 6, 0);
+        if (id === 'kinetic' || id === 'momentum' || id === 'lorentz') this.launch(body, p.v, n.rotation ?? 0);
+        if (id === 'electricField') this.launch(body, 2, n.rotation ?? 0);
+        if (id === 'friction') this.launch(body, 6, n.rotation ?? 0);
         if (id === 'momentum') make(clamp(x + 190, 70, 900), y, 2, 1, 'm₂');
         if (id === 'coulomb') make(n.x + p.r * PX_PER_M / 2, y, 1, 1, 'q₂');
     }
@@ -147,28 +153,40 @@ export class PhysicsWorld {
         const fields = this.nodes.flatMap(fieldsForNode), holes = this.nodes.filter(n => n.recipeId === 'blackhole');
         const before = new Map<string, { x: number; y: number }>();
         for (const item of [...this.bodies.values()]) {
-            if (item === this.held) continue;
+            if (this.held.has(item.key)) continue;
             const b = item.body, n = this.nodes.find(n => n.id === item.owner), p = n?.params ?? {}, id = n?.recipeId;
             before.set(item.key, { ...b.position });
             let ax = 0, ay = 0, bz = 0;
             if (item.label) {
                 if (id === 'weight' || id === 'potential') ay += p.g;
-                if (id === 'newton') ax += p.a;
-                if (id === 'impulse' && (ages.get(item.owner) ?? 0) < p.t) ax += p.F / b.mass;
-                if (id === 'work') { const dx = b.position.x - (this.anchors.get(item.owner)?.x ?? n!.x); if (dx >= 0 && dx < p.d * PX_PER_M) ax += p.F / b.mass; }
+                const angle = n ? orientation(n) : 0, ux = Math.cos(angle), uy = Math.sin(angle);
+                if (id === 'newton') { ax += p.a * ux; ay += p.a * uy; }
+                if (id === 'impulse' && (ages.get(item.owner) ?? 0) < p.t) { ax += p.F / b.mass * ux; ay += p.F / b.mass * uy; }
+                if (id === 'work') {
+                    const anchor = this.anchors.get(item.owner) ?? n!;
+                    const travel = (b.position.x - anchor.x) * ux + (b.position.y - anchor.y) * uy;
+                    if (travel >= 0 && travel < p.d * PX_PER_M) { ax += p.F / b.mass * ux; ay += p.F / b.mass * uy; }
+                }
                 if (id === 'hooke') {
                     const anchor = this.anchors.get(item.owner)!;
-                    ax += -p.k * (b.position.x - anchor.x) / PX_PER_M / b.mass - .12 * b.velocity.x * 60 / PX_PER_M;
-                    if (!holes.length) { Matter.Body.setPosition(b, { x: b.position.x, y: anchor.y }); Matter.Body.setVelocity(b, { x: b.velocity.x, y: 0 }); }
+                    const displacement = (b.position.x - anchor.x) * ux + (b.position.y - anchor.y) * uy;
+                    const speed = b.velocity.x * ux + b.velocity.y * uy;
+                    const a = -p.k * displacement / PX_PER_M / b.mass - .12 * speed * 60 / PX_PER_M;
+                    ax += a * ux; ay += a * uy;
+                    if (!holes.length) {
+                        Matter.Body.setPosition(b, { x: anchor.x + displacement * ux, y: anchor.y + displacement * uy });
+                        Matter.Body.setVelocity(b, { x: speed * ux, y: speed * uy });
+                    }
                 }
                 if (id === 'friction') {
                     const dv = p.mu * p.g * PX_PER_M / 60 * dt;
-                    Matter.Body.setVelocity(b, { x: Math.sign(b.velocity.x) * Math.max(0, Math.abs(b.velocity.x) - dv), y: b.velocity.y });
+                    const speed = Math.hypot(b.velocity.x, b.velocity.y), factor = speed > 0 ? Math.max(0, speed - dv) / speed : 0;
+                    Matter.Body.setVelocity(b, { x: b.velocity.x * factor, y: b.velocity.y * factor });
                 }
                 const q = this.chargeOf(item);
                 for (const f of fields) {
                     if (!insideField(f, b.position.x, b.position.y)) continue;
-                    if (f.kind === 'gravity') ay += f.value;
+                    if (f.kind === 'gravity') { ax -= f.value * Math.sin(f.angle); ay += f.value * Math.cos(f.angle); }
                     if (f.kind === 'electric') { ax += q / b.mass * f.value * Math.cos(f.angle); ay += q / b.mass * f.value * Math.sin(f.angle); }
                     if (f.kind === 'magnetic') bz += f.value;
                     if (f.kind === 'source') {
@@ -209,7 +227,7 @@ export class PhysicsWorld {
         this.trailTick++;
         for (const item of [...this.bodies.values()]) {
             const b = item.body, prev = before.get(item.key);
-            if (prev && item !== this.held) {
+            if (prev && !this.held.has(item.key)) {
                 const h = holes.find(n => { const g = blackHoleGeometry(n); return segmentDistance(prev.x, prev.y, b.position.x, b.position.y, g.x, g.y) < g.radius + item.radius * .22; });
                 if (h) { this.capture(item, h); continue; }
             }
@@ -233,28 +251,54 @@ export class PhysicsWorld {
         return [...this.bodies.values()].reverse().find(i => !!i.label && Math.hypot(x - i.body.position.x, y - i.body.position.y) <= i.radius + 10) ?? null;
     }
     pick(x: number, y: number): boolean { const i = this.pickBody(x, y); return i ? this.hold(i.key) : false; }
-    hold(key: string): boolean {
-        this.release();
-        const item = this.bodies.get(key);
-        if (!item) return false;
-        this.held = item; this.heldMass = item.body.mass;
-        Matter.Body.setStatic(item.body, true); return true;
+    hold(key: string): boolean { this.release(); return this.holdKeys([key]); }
+    holdKeys(keys: string[]): boolean {
+        let found = false;
+        for (const key of keys) {
+            const item = this.bodies.get(key); if (!item || this.held.has(key)) continue;
+            this.held.set(key, { mass: item.body.mass, velocity: Matter.Body.getVelocity(item.body), av: item.body.angularVelocity });
+            Matter.Body.setStatic(item.body, true); found = true;
+        }
+        return found;
     }
+    holdOwners(ids: ReadonlySet<string>) { this.holdKeys([...this.bodies.values()].filter(i => ids.has(i.owner)).map(i => i.key)); }
     drag(x: number, y: number) {
-        if (!this.held) return;
-        const r = this.held.radius;
-        Matter.Body.setPosition(this.held.body, { x: clamp(x, r + 1, WIDTH - r - 1), y: clamp(y, r + 1, FLOOR - r) });
-        this.held.trail = [];
+        const key = this.held.keys().next().value, item = key ? this.bodies.get(key) : undefined;
+        if (!item) return;
+        const r = item.radius;
+        Matter.Body.setPosition(item.body, { x: clamp(x, r + 1, WIDTH - r - 1), y: clamp(y, r + 1, FLOOR - r) }); item.trail = [];
     }
-    release() {
-        if (!this.held) return;
-        Matter.Body.setStatic(this.held.body, false); Matter.Body.setMass(this.held.body, this.heldMass); Matter.Body.setInertia(this.held.body, Infinity);
-        Matter.Body.setVelocity(this.held.body, { x: 0, y: 0 }); this.held = null;
+    release(resumeVelocity = false) {
+        for (const [key, held] of this.held) {
+            const item = this.bodies.get(key); if (!item) continue;
+            Matter.Body.setStatic(item.body, false); Matter.Body.setMass(item.body, held.mass); Matter.Body.setInertia(item.body, Infinity);
+            Matter.Body.setVelocity(item.body, resumeVelocity ? held.velocity : { x: 0, y: 0 });
+            Matter.Body.setAngularVelocity(item.body, resumeVelocity ? held.av : 0);
+        }
+        this.held.clear();
     }
+    /** Editor transforms authored state and real bodies together; pointer motion adds no velocity. */
+    transformOwners(ids: ReadonlySet<string>, dx: number, dy: number, angle = 0, pivot: Point = { x: 0, y: 0 }) {
+        for (const item of this.bodies.values()) if (ids.has(item.owner)) {
+            const b = item.body, p = rotatePoint(b.position, pivot, angle);
+            Matter.Body.setPosition(b, { x: p.x + dx, y: p.y + dy });
+            Matter.Body.setAngle(b, b.angle + angle);
+            const held = this.held.get(item.key);
+            if (held) held.velocity = rotateVector(held.velocity, angle);
+            else Matter.Body.setVelocity(b, rotateVector(Matter.Body.getVelocity(b), angle));
+            item.trail = [];
+        }
+        for (const [id, anchor] of this.anchors) if (ids.has(id)) {
+            const p = rotatePoint(anchor, pivot, angle); this.anchors.set(id, { x: p.x + dx, y: p.y + dy });
+        }
+    }
+    snapshotAnchors() { return structuredClone(Object.fromEntries(this.anchors)); }
+    restoreAnchors(anchors?: Record<string, Point>) { if (anchors) this.anchors = new Map(Object.entries(anchors)); }
     snapshot(): BodySnapshot[] {
-        return [...this.bodies.values()].map(({ body: b, key, owner, label, radius }) => ({ key, owner, x: b.position.x, y: b.position.y, vx: b.velocity.x, vy: b.velocity.y, angle: b.angle, av: b.angularVelocity, mass: b.isStatic ? this.heldMass : b.mass, radius, label }));
+        return [...this.bodies.values()].map(({ body: b, key, owner, label, radius }) => ({ key, owner, x: b.position.x, y: b.position.y, vx: this.held.get(key)?.velocity.x ?? b.velocity.x, vy: this.held.get(key)?.velocity.y ?? b.velocity.y, angle: b.angle, av: this.held.get(key)?.av ?? b.angularVelocity, mass: this.held.get(key)?.mass ?? b.mass, radius, label }));
     }
     restore(bodies: BodySnapshot[], absorbed: string[]) {
+        this.release();
         for (const key of [...this.bodies.keys()]) this.remove(key);
         this.absorbed = new Set(absorbed);
         for (const s of bodies) {

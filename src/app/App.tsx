@@ -1,3 +1,4 @@
+import { useEditorShortcuts } from './useEditorShortcuts';
 import { Component, useCallback, useEffect, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { useAutoSave, useGame, useSession } from './session';
@@ -14,7 +15,7 @@ import { Stage } from '../components/Stage';
 import { Icon } from '../components/Icon';
 type Modal = 'book' | 'journal' | 'save' | 'help' | 'reset' | null;
 export function App() {
-    const session = useSession(), { store, audio, runtime } = session, state = useGame();
+    const session = useSession(), { store, audio, editor } = session, state = useGame();
     const [modal, setModal] = useState<Modal>(null), [inspectOpen, setInspectOpen] = useState(false), [toast, setToast] = useState<{
         text: string;
         kind: NoticeKind;
@@ -42,49 +43,7 @@ export function App() {
         document.addEventListener('click', buttonSound);
         return () => { document.removeEventListener('pointerdown', buttonSound); document.removeEventListener('click', buttonSound); };
     }, [audio]);
-    useEffect(() => {
-        const key = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') {
-                e.preventDefault();
-                setModal('save');
-                return;
-            }
-            if (modal || (e.target as Element).closest('input,textarea,select,button,[contenteditable="true"]'))
-                return;
-            if (e.code === 'Space') {
-                e.preventDefault();
-                store.patch({ paused: !store.getState().paused });
-            }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                const id = store.getState().selectedId;
-                if (id) {
-                    e.preventDefault();
-                    store.remove(id);
-                }
-            }
-            if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
-                e.preventDefault();
-                const current = store.getState(), nodes = current.nodes;
-                if (nodes.length) {
-                    const index = nodes.findIndex(n => n.id === current.selectedId);
-                    store.select(nodes[(index + (e.code === 'BracketLeft' ? -1 : 1) + nodes.length) % nodes.length].id);
-                }
-            }
-            if (e.key.startsWith('Arrow')) {
-                const current = store.getState(), n = current.nodes.find(n => n.id === current.selectedId);
-                const delta = ({ ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] } as Record<string, number[]>)[e.key];
-                if (n && delta) {
-                    e.preventDefault(); const p = runtime.world.positionFor(n), b = runtime.world.bodies.get(`${n.id}/0`);
-                    if (b) { runtime.world.hold(b.key); runtime.world.drag(p.x + delta[0], p.y + delta[1]); runtime.world.release(); }
-                    else store.move(n.id, p.x + delta[0], p.y + delta[1]);
-                }
-            }
-            if (e.key === '?')
-                setModal('help');
-        };
-        document.addEventListener('keydown', key);
-        return () => document.removeEventListener('keydown', key);
-    }, [store, runtime, modal]);
+    useEditorShortcuts({ onSave: () => setModal('save'), onHelp: () => setModal('help'), onEscape: () => setInspectOpen(false) });
     const toggleMusic = () => {
         const enabled = !store.getState().music;
         if (enabled) void audio.unlock().catch(() => {});
@@ -98,7 +57,7 @@ export function App() {
     <div className="app-content"><Palette onBook={() => setModal('book')}/><Stage onReset={() => setModal('reset')} onHelp={() => setModal('help')} onInspect={() => setInspectOpen(true)}/>{inspectOpen && <button className="inspector-scrim" aria-label="Закрыть панель параметров" onClick={() => setInspectOpen(false)}/>}<Inspector open={inspectOpen} onClose={() => setInspectOpen(false)} onBook={() => setModal('book')}/></div>
     <footer className="app-footer"><span>Любопытство — единственная предпосылка.</span><span>{RECIPES.length} физических рецепта <span className="footer-dot">·</span> 7–11 классы</span></footer>
   </div>
-  {modal === 'book' && <FormulaBook onClose={close}/>}{modal === 'journal' && <Journal onClose={close}/>}{modal === 'save' && <SaveManager onClose={close}/>}{modal === 'help' && <Help onClose={close}/>}{modal === 'reset' && <Dialog title="Начать с чистого листа?" subtitle="Элементы и физические тела будут удалены. Журнал открытий сохранится." onClose={close} className="confirm-dialog"><div className="confirm-actions"><button className="button outline" onClick={close}>Продолжить опыт</button><button className="button dark" onClick={() => { store.reset(); runtime.reset(); close(); store.notify('Холст очищен. Открытия остались в журнале.'); }}>Очистить холст</button></div></Dialog>}
+  {modal === 'book' && <FormulaBook onClose={close}/>}{modal === 'journal' && <Journal onClose={close}/>}{modal === 'save' && <SaveManager onClose={close}/>}{modal === 'help' && <Help onClose={close}/>}{modal === 'reset' && <Dialog title="Начать с чистого листа?" subtitle="Элементы и физические тела будут удалены. Журнал открытий сохранится." onClose={close} className="confirm-dialog"><div className="confirm-actions"><button className="button outline" onClick={close}>Продолжить опыт</button><button className="button dark" onClick={() => { editor.clear(); close(); store.notify('Холст очищен. Открытия остались в журнале.'); }}>Очистить холст</button></div></Dialog>}
   {toast && <div className={`toast toast-${toast.kind}`} role="status"><Icon name={toast.kind === 'success' ? 'check' : toast.kind === 'error' ? 'help' : 'flask'} size={19}/><span>{toast.text}</span><button className="icon-button" aria-label="Закрыть уведомление" onClick={() => setToast(null)}><Icon name="close" size={15}/></button></div>}
   </>;
 }

@@ -13,7 +13,7 @@ export function Palette({ onBook }: {
     const selected = state.nodes.find(n => n.id === state.selectedId);
     const topicSymbols = useMemo(() => new Set(RECIPES.filter(r => r.topic === topic).flatMap(r => r.inputs)), [topic]);
     const items = SYMBOLS.filter(s => (topic === 'all' || topicSymbols.has(s.id) || search.trim()) && (!search.trim() || `${s.name} ${s.id}`.toLowerCase().includes(search.toLowerCase())));
-    return <aside className={`palette ${expanded ? 'palette-expanded' : ''}`} aria-label="Палитра физических символов">
+    return <aside data-palette-return title="Перетащите объект сюда, чтобы убрать его с холста. Ctrl+Z возвращает удалённое." className={`palette ${expanded ? 'palette-expanded' : ''}`} aria-label="Палитра физических символов">
     <div className="palette-heading"><div><h2>Переменные</h2><p>Перетащите на холст</p></div><button className="icon-button mobile-only" aria-label={expanded ? 'Свернуть палитру' : 'Развернуть палитру'} onClick={() => setExpanded(!expanded)}><Icon name="chevron" style={{ transform: expanded ? 'rotate(180deg)' : undefined }}/></button></div>
     <div className="palette-filters"><label className="sr-only" htmlFor="palette-topic">Раздел палитры</label><select id="palette-topic" value={topic} onChange={e => setTopic(e.target.value)}><option value="all">Все разделы</option>{TOPICS.map(t => <option key={t.id} value={t.id}>{t.number} · {t.short}</option>)}</select>
     <label className="search-field"><Icon name="search" size={15}/><input aria-label="Поиск символа" placeholder="Найти переменную" value={search} onChange={e => setSearch(e.target.value)}/></label></div>

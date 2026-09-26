@@ -38,3 +38,11 @@
 
 /* Keep independent SFX mute reachable on touch devices too. */
 @media(max-width:760px){.header-tools .sound-toggle{display:inline-flex}}
+
+/* Command surface is separate from the physics canvas. No selection proxy objects. */
+.editor-toolbar{display:flex;gap:3px;align-items:center;min-height:40px;height:40px;margin:0 14px 5px;padding:2px 3px;border-top:1px solid #e4e4e4;border-bottom:1px solid #e4e4e4;flex:none;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.editor-toolbar .icon-button{width:32px;height:32px;flex:none}.editor-toolbar .toolbar-separator{margin:0 4px}.editor-selection-count{margin-left:auto;white-space:nowrap;font-size:10px;color:#777;padding:0 9px;font-variant-numeric:tabular-nums}
+.palette-return-active{background:#e5e5e5!important;box-shadow:inset 0 0 0 2px #666!important}.palette-return-active .palette-heading p{font-size:0}.palette-return-active .palette-heading p:after{content:'Отпустите, чтобы удалить · Ctrl+Z';font-size:10px;color:#333}.palette-return-active .symbol-grid{opacity:.28;pointer-events:none}
+.object-transform{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e2e2e2;padding:0 0 10px;margin-bottom:12px}.object-transform>span{font-size:11px;color:#666;font-variant-numeric:tabular-nums}.group-actions{display:flex;gap:8px;margin:20px 0}.group-actions>.button{flex:1;padding:9px 8px;font-size:11px}.selected-objects{display:flex;flex-direction:column;gap:5px;margin:12px 0 20px}.selected-objects .text-button{font-size:12px}
+@media(max-width:560px){.editor-toolbar{margin:0 10px 3px;padding:2px 0;gap:2px;min-height:40px}.editor-toolbar .icon-button{width:33px;height:33px}.editor-toolbar .toolbar-separator{margin:0 2px}.editor-selection-count{font-size:9px;padding:0 4px}.palette-return-active .palette-heading p:after{font-size:9px}.object-transform .text-button{min-height:36px}}
+@media(max-width:380px){.editor-selection-count{max-width:69px;white-space:normal;font-size:8px}.editor-toolbar{gap:0}.editor-toolbar .icon-button{width:30px}}

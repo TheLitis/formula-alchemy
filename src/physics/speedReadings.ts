@@ -1,3 +1,4 @@
+import { orientation, rotateVector } from '../editor/geometry';
 import Matter from 'matter-js';
 import { G } from '../core/evaluate';
 import { isApparatus } from '../core/entities';
@@ -23,7 +24,8 @@ export interface SpeedReading {
 /** Shared with Renderer: moving a diagram does not change its physical velocity. */
 export function apparatusTransform(n: FormulaNode, lab: GameState['lab']) {
     const scale = lab === 'sandbox' ? n.recipeId === 'gravitation' ? .9 : .64 : .94;
-    return { scale, tx: n.x - 500 * scale, ty: n.y - 360 * scale };
+    const angle = orientation(n), offset = rotateVector({ x: 500 * scale, y: 360 * scale }, angle);
+    return { scale, angle, tx: n.x - offset.x, ty: n.y - offset.y };
 }
 
 /** Exactly the analytic trajectories used in the diagrams, before display scaling. */
@@ -77,8 +79,9 @@ export function collectSpeedReadings(state: GameState, world: PhysicsWorld, ages
         if (!isApparatus(n) || (state.lab !== 'sandbox' && n.id !== state.activeId)) continue;
         const reading = apparatusSpeed(n, ages.get(n.id) ?? 0);
         if (!reading || !Number.isFinite(reading.value)) continue;
-        const { scale, tx, ty } = apparatusTransform(n, state.lab);
-        readings.push({ ...reading, x: tx + reading.x * scale, y: ty + reading.y * scale, radius: reading.radius * scale });
+        const { scale, tx, ty, angle } = apparatusTransform(n, state.lab);
+        const point = rotateVector({ x: reading.x * scale, y: reading.y * scale }, angle);
+        readings.push({ ...reading, x: tx + point.x, y: ty + point.y, radius: reading.radius * scale });
     }
     return readings;
 }

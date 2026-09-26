@@ -111,3 +111,32 @@ describe('real authored audio files and licenses',()=>{
         for(const pack of ['interface','impact','scifi'])expect(readFileSync(new URL(`../public/audio/LICENSE-${pack}.txt`,import.meta.url),'utf8')).toContain('CC0');
     });
 });
+
+
+describe('mellow UI sound revision preserves approved effects', () => {
+    const digest = (file:string) => createHash('sha256').update(readFileSync(new URL(`../public/audio/${file}`, import.meta.url))).digest('hex');
+    it('keeps placement, impacts, black-hole family and the owner music byte-for-byte', () => {
+        const approved = {
+            'drop.wav': '8af0dee663fe59269bc774881df376ba8f76af7f6e085e8a5de66c76135dcf84',
+            'impact-soft.wav': '3cf159879e0d7c72f6c521d8598a7ce139d6aeffdcdc940029ccbb59aa193fa5',
+            'impact-hard.wav': 'c72c7f50246b1a59aa581f1a774956430f69e9da329036c5abb541f02146746e',
+            'blackhole.wav': 'bbaa9b12ca92deafde037056c41c2b248d7416c5db3c1d07c0ca8032b77eb6cc',
+            'absorb.wav': 'd6d724534a4a406535b7c29478da0931f18d16988f9e32dc4b0ee2e8dfd1eb2f',
+            'sky-high.mp3': '38b7b571b93b0df53b4f3f6832f9432c0a32906383a5de1c0e9db33b22ed3156',
+        };
+        for(const [file,hash] of Object.entries(approved))expect(digest(file),file).toBe(hash);
+        expect([SOUNDS.drop.gain,SOUNDS.impactSoft.gain,SOUNDS.impactHard.gain,SOUNDS.absorb.gain,SOUNDS.blackhole.gain]).toEqual([.23,.30,.28,.12,.33]);
+    });
+    it('uses short, faded, low-pass UI waveforms rather than pitched confirmation/error sweeps', () => {
+        const manifest=JSON.parse(readFileSync(new URL('../public/audio/credits.json',import.meta.url),'utf8'));
+        for(const id of ['click','craft','discovery','remove','error'] as const){
+            const credit=manifest.files.find((v:{file:string})=>v.file===SOUNDS[id].file);
+            expect(credit.originalFile).toMatch(/impactWood|impactSoft|footstep_carpet/);
+            expect(credit.processing.lowPassHz).toBe(1800);expect(credit.peakDbFS).toBeLessThanOrEqual(-7);
+            const data=readFileSync(new URL(`../public/audio/${SOUNDS[id].file}`,import.meta.url));
+            expect(Math.abs(data.readInt16LE(44))).toBeLessThan(10);expect(Math.abs(data.readInt16LE(data.length-2))).toBeLessThan(10);
+            let energy=0,change=0,prev=0;for(let i=44;i<data.length;i+=2){const v=data.readInt16LE(i);energy+=v*v;change+=(v-prev)**2;prev=v;}
+            expect(Math.sqrt(change/energy)).toBeLessThan(.18);
+        }
+    });
+});

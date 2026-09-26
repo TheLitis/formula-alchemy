@@ -1,11 +1,11 @@
 /** Kenney CC0 samples, bundled with the app. Provenance: public/audio/credits.json. */
 export const SOUNDS = {
-    click: { file: 'click.wav', gain: .22, cooldown: 55 },
+    click: { file: 'click.wav', gain: .18, cooldown: 85 },
     drop: { file: 'drop.wav', gain: .23, cooldown: 75 },
-    craft: { file: 'craft.wav', gain: .28, cooldown: 140 },
-    discovery: { file: 'discovery.wav', gain: .32, cooldown: 240 },
-    remove: { file: 'remove.wav', gain: .20, cooldown: 100 },
-    error: { file: 'error.wav', gain: .19, cooldown: 400 },
+    craft: { file: 'craft.wav', gain: .24, cooldown: 140 },
+    discovery: { file: 'discovery.wav', gain: .26, cooldown: 240 },
+    remove: { file: 'remove.wav', gain: .19, cooldown: 100 },
+    error: { file: 'error.wav', gain: .18, cooldown: 400 },
     impactSoft: { file: 'impact-soft.wav', gain: .30, cooldown: 100 },
     impactHard: { file: 'impact-hard.wav', gain: .28, cooldown: 100 },
     absorb: { file: 'absorb.wav', gain: .12, cooldown: 300 },
